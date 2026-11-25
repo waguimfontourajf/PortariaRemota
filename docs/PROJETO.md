@@ -1,6 +1,6 @@
 # Portaria Remota — Documento do Projeto
 
-> **Status:** rascunho para revisão (v0.1, 25/11/2026)
+> **Status:** rascunho para revisão (v0.2, 25/11/2026)
 > Nada é codado antes deste documento ser aprovado.
 
 ---
@@ -212,7 +212,7 @@ Todas as tabelas importantes têm `uuid`, porque é isso que permite sincronizar
 - O servidor local consulta a central **uma vez por dia**.
 - A central devolve uma licença **assinada digitalmente** (não dá para falsificar editando o banco).
 - **Tolerância offline:** 7 dias (configurável).
-- **Licença vencida:** bloqueia as funções de gestão e mostra aviso. ⚠️ *Decisão pendente: a abertura de portões deve continuar funcionando? Minha sugestão é **sim**, por segurança. Ver item 10.*
+- **Licença vencida:** bloqueia as funções de gestão e mostra aviso. A **abertura de portões continua funcionando** (decidido).
 
 ---
 
@@ -259,10 +259,12 @@ Cada etapa termina com algo **funcionando de verdade** que você pode testar ant
 
 ---
 
-## 10. Decisões pendentes
+## 10. Decisões
 
-1. **Bocal de teste:** qual app você usa para controlá-lo hoje (Smart Life / Tuya, eWeLink, Positivo Casa Inteligente...)? Isso define o driver do primeiro teste.
-2. **Licença vencida:** a abertura de portões continua liberada? (sugestão: sim)
-3. **Nome comercial / marca** do sistema (pode ficar para depois).
-4. **Subdomínio** que será usado (ex.: `portaria.seudominio`).
-5. **Ambiente de desenvolvimento no Windows:** Laragon (recomendado, mais simples) ou XAMPP?
+| # | Assunto | Decisão |
+|---|---|---|
+| 1 | Bocal de teste | ⏳ confirmar o nome do app (Tuya/Smart Life ou eWeLink) |
+| 2 | Licença vencida | ✅ abertura de portões **continua liberada**; bloqueia só a gestão |
+| 3 | Nome comercial | ⏳ a definir (o sistema usa "Portaria Remota" provisoriamente, fácil de trocar) |
+| 4 | Subdomínio | ✅ `portariaremota.meusistema.api.br` (a criar) |
+| 5 | Ambiente de desenvolvimento | ✅ Laragon (Windows) |
