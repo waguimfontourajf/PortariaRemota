@@ -18,6 +18,40 @@
                         {{ __('Painel') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
+
+                @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::CadastrosGerenciar->value))
+                    <flux:sidebar.group :heading="__('Cadastros')" class="grid">
+                        <flux:sidebar.item icon="building-office" :href="route('blocos.index')" :current="request()->routeIs('blocos.*')" wire:navigate>
+                            {{ __('Blocos') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="home-modern" :href="route('unidades.index')" :current="request()->routeIs('unidades.*')" wire:navigate>
+                            {{ __('Unidades') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="users" :href="route('pessoas.index')" :current="request()->routeIs('pessoas.*')" wire:navigate>
+                            {{ __('Pessoas') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
+
+                @if ($condominioAtual && (auth()->user()->can(\App\Enums\Permissao::UsuariosGerenciar->value) || auth()->user()->can(\App\Enums\Permissao::CondominioGerenciar->value)) || auth()->user()->isSuperAdmin())
+                    <flux:sidebar.group :heading="__('Administração')" class="grid">
+                        @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::UsuariosGerenciar->value))
+                            <flux:sidebar.item icon="key" :href="route('usuarios.index')" :current="request()->routeIs('usuarios.*')" wire:navigate>
+                                {{ __('Usuários') }}
+                            </flux:sidebar.item>
+                        @endif
+                        @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::CondominioGerenciar->value))
+                            <flux:sidebar.item icon="identification" :href="route('condominios.editar', $condominioAtual)" :current="request()->routeIs('condominios.editar') && request()->route('condominio')?->is($condominioAtual)" wire:navigate>
+                                {{ __('Dados do condomínio') }}
+                            </flux:sidebar.item>
+                        @endif
+                        @if (auth()->user()->isSuperAdmin())
+                            <flux:sidebar.item icon="building-office-2" :href="route('condominios.index')" :current="request()->routeIs('condominios.index', 'condominios.criar')" wire:navigate>
+                                {{ __('Todos os condomínios') }}
+                            </flux:sidebar.item>
+                        @endif
+                    </flux:sidebar.group>
+                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />

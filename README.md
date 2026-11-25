@@ -119,7 +119,10 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | Caminho | O que é |
 |---|---|
 | `app/Enums/` | Perfis, permissões e modos de operação |
-| `app/Models/Condominio.php` | Condomínio |
+| `app/Models/` | Condomínio, bloco, unidade, pessoa, usuário |
+| `resources/views/pages/` | Telas (componentes Livewire): condomínios, cadastros, usuários |
+| `app/Support/RegrasDeUsuario.php` | Quem pode alterar o quê na gestão de usuários |
+| `app/Support/Documento.php` | Validação/formatação de CPF, CNPJ, telefone e CEP |
 | `app/Support/CondominioAtual.php` | Controla qual condomínio o usuário está operando |
 | `app/Http/Middleware/` | Condomínio atual, 2FA obrigatório e bloqueio de usuário inativo |
 | `config/portaria.php` | Configurações próprias do sistema |

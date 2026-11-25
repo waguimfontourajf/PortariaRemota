@@ -10,6 +10,23 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('condominio/{condominio}/selecionar', TrocarCondominioController::class)
         ->name('condominio.selecionar');
+
+    // Condomínios (lista e criação: super admin; edição: também o síndico do próprio)
+    Route::livewire('condominios', 'pages::condominios.index')->name('condominios.index');
+    Route::livewire('condominios/novo', 'pages::condominios.form')->name('condominios.criar');
+    Route::livewire('condominios/{condominio}/editar', 'pages::condominios.form')->name('condominios.editar');
+
+    // Cadastros do condomínio atual
+    Route::livewire('cadastros/blocos', 'pages::cadastros.blocos')->name('blocos.index');
+    Route::livewire('cadastros/unidades', 'pages::cadastros.unidades')->name('unidades.index');
+    Route::livewire('cadastros/pessoas', 'pages::cadastros.pessoas.index')->name('pessoas.index');
+    Route::livewire('cadastros/pessoas/nova', 'pages::cadastros.pessoas.form')->name('pessoas.criar');
+    Route::livewire('cadastros/pessoas/{pessoa}/editar', 'pages::cadastros.pessoas.form')->name('pessoas.editar');
+
+    // Usuários do condomínio atual
+    Route::livewire('usuarios', 'pages::usuarios.index')->name('usuarios.index');
+    Route::livewire('usuarios/novo', 'pages::usuarios.form')->name('usuarios.criar');
+    Route::livewire('usuarios/{usuario}/editar', 'pages::usuarios.form')->name('usuarios.editar');
 });
 
 require __DIR__.'/settings.php';

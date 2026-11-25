@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -111,6 +112,46 @@ class User extends Authenticatable
     public function atribuirPerfil(Perfil $perfil, Condominio $condominio): void
     {
         $this->noCondominio($condominio, fn () => $this->assignRole($perfil->value));
+    }
+
+    /**
+     * Define exatamente os perfis do usuário em um condomínio.
+     *
+     * @param  list<Perfil>  $perfis
+     */
+    public function sincronizarPerfis(array $perfis, Condominio $condominio): void
+    {
+        $this->noCondominio($condominio, fn () => $this->syncRoles(array_map(fn (Perfil $p) => $p->value, $perfis)));
+    }
+
+    /**
+     * Perfis do usuário em um condomínio.
+     *
+     * @return list<Perfil>
+     */
+    public function perfisNo(Condominio $condominio): array
+    {
+        return $this->noCondominio($condominio, fn () => $this->getRoleNames()
+            ->map(fn (string $nome) => Perfil::tryFrom($nome))
+            ->filter()
+            ->values()
+            ->all());
+    }
+
+    /**
+     * Em quantos condomínios o usuário tem perfil.
+     */
+    public function quantidadeDeCondominios(): int
+    {
+        return $this->condominios()->count('condominios.id');
+    }
+
+    /**
+     * @return HasMany<Pessoa, $this>
+     */
+    public function pessoas(): HasMany
+    {
+        return $this->hasMany(Pessoa::class);
     }
 
     public function removerPerfil(Perfil $perfil, Condominio $condominio): void

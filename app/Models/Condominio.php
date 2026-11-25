@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
@@ -76,6 +77,30 @@ class Condominio extends Model
             config('permission.column_names.team_foreign_key'),
             config('permission.column_names.model_morph_key'),
         )->where('model_type', (new User)->getMorphClass())->distinct();
+    }
+
+    /**
+     * @return HasMany<Bloco, $this>
+     */
+    public function blocos(): HasMany
+    {
+        return $this->hasMany(Bloco::class);
+    }
+
+    /**
+     * @return HasMany<Unidade, $this>
+     */
+    public function unidades(): HasMany
+    {
+        return $this->hasMany(Unidade::class);
+    }
+
+    /**
+     * @return HasMany<Pessoa, $this>
+     */
+    public function pessoas(): HasMany
+    {
+        return $this->hasMany(Pessoa::class);
     }
 
     /**

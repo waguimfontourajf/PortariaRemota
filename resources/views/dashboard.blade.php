@@ -45,10 +45,31 @@
             </div>
         @endif
 
+        @if ($condominioAtual)
+            <div class="grid gap-4 sm:grid-cols-3">
+                @foreach ([
+                    ['rotulo' => __('Blocos'), 'valor' => $condominioAtual->blocos()->count(), 'rota' => 'blocos.index', 'icone' => 'building-office'],
+                    ['rotulo' => __('Unidades'), 'valor' => $condominioAtual->unidades()->count(), 'rota' => 'unidades.index', 'icone' => 'home-modern'],
+                    ['rotulo' => __('Pessoas ativas'), 'valor' => $condominioAtual->pessoas()->where('ativo', true)->count(), 'rota' => 'pessoas.index', 'icone' => 'users'],
+                ] as $item)
+                    <flux:card class="flex items-center gap-4">
+                        <flux:icon :name="$item['icone']" class="size-8 text-zinc-400" />
+                        <div class="flex-1">
+                            <flux:text class="text-sm">{{ $item['rotulo'] }}</flux:text>
+                            <flux:heading size="xl">{{ $item['valor'] }}</flux:heading>
+                        </div>
+                        @can(\App\Enums\Permissao::CadastrosGerenciar->value)
+                            <flux:button size="sm" variant="ghost" icon="arrow-right" :href="route($item['rota'])" wire:navigate :aria-label="__('Abrir')" />
+                        @endcan
+                    </flux:card>
+                @endforeach
+            </div>
+        @endif
+
         <flux:card class="flex flex-col gap-2">
-            <flux:heading>{{ __('Em construção') }}</flux:heading>
+            <flux:heading>{{ __('Próximas etapas') }}</flux:heading>
             <flux:text>
-                {{ __('Pontos de acesso, dispositivos, câmeras e interfone chegam nas próximas etapas. Esta é a Etapa 0: login, perfis e estrutura de condomínios.') }}
+                {{ __('Pontos de acesso, relés, câmeras e interfone chegam nas próximas etapas.') }}
             </flux:text>
         </flux:card>
     </div>
