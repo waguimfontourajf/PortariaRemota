@@ -1,31 +1,127 @@
-# Laravel + Livewire Starter Kit
+# Portaria Remota
 
-## Introduction
+Plataforma de portaria remota para condomínios: abertura de portões e portas, central de atendimento, câmeras, interfone e servidores locais com licença.
 
-Our Laravel + [Livewire](https://livewire.laravel.com) starter kit provides a robust, modern starting point for building Laravel applications with a Livewire frontend.
+> 📄 O planejamento completo (arquitetura, banco de dados, etapas) está em [`docs/PROJETO.md`](docs/PROJETO.md).
 
-Livewire is a powerful way of building dynamic, reactive, frontend UIs using just PHP. It's a great fit for teams that primarily use Blade templates and are looking for a simpler alternative to JavaScript-driven SPA frameworks like React and Vue.
+**Tecnologias:** PHP 8.3+, Laravel 13, Livewire 4, Flux UI, Tailwind CSS, MySQL 8.
 
-This Livewire starter kit utilizes Livewire 4, TypeScript, Tailwind, and the [Flux UI](https://fluxui.dev) component library.
+---
 
-If you are looking for the alternate configurations of this starter kit, they can be found in the following branches:
+## Instalação no Windows com Laragon
 
-- [workos](https://github.com/laravel/livewire-starter-kit/tree/workos) - if WorkOS is selected for authentication
+### 1. Pré-requisitos
 
-## Official Documentation
+- **Laragon** com **PHP 8.3 ou mais novo**, **MySQL 8** e **Node.js 20+**.
+  - Para conferir, abra o **Terminal** do Laragon e rode `php -v` e `node -v`.
+  - Se o PHP for mais antigo: baixe o PHP 8.3/8.4 (*Thread Safe*, x64) em windows.php.net, extraia em `C:\laragon\bin\php\` e selecione em **Menu → PHP → Versão**.
+- Extensões do PHP ativas (**Menu → PHP → Extensões**): `pdo_mysql`, `mbstring`, `openssl`, `intl`, `zip`, `fileinfo`, `curl`.
+- **Git** (já vem no Laragon).
 
-Documentation for all Laravel starter kits can be found on the [Laravel website](https://laravel.com/docs/starter-kits).
+### 2. Baixar o projeto
 
-## Contributing
+No Terminal do Laragon:
 
-Thank you for considering contributing to our starter kit! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+cd C:\laragon\www
+git clone https://github.com/waguimfontourajf/PortariaRemota.git portariaremota
+cd portariaremota
+```
 
-All contributions to the Starter Kits from now on should be made through [Maestro](https://github.com/laravel/maestro).
+### 3. Instalar dependências
 
-## Code of Conduct
+```bash
+composer install
+npm install
+npm run build
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4. Configurar o `.env`
 
-## License
+```bash
+copy .env.example .env
+php artisan key:generate
+```
 
-The Laravel + Livewire starter kit is open-sourced software licensed under the MIT license.
+Abra o `.env` e confira:
+
+```ini
+APP_URL=http://portariaremota.test
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=portaria_remota
+DB_USERNAME=root
+DB_PASSWORD=
+
+PORTARIA_MODO=central
+PORTARIA_EXIGIR_2FA=true
+
+# Primeiro super admin (opcional: também dá para criar pelo comando do passo 6)
+PORTARIA_ADMIN_NOME="Seu Nome"
+PORTARIA_ADMIN_EMAIL=seu@email.com.br
+PORTARIA_ADMIN_SENHA=uma-senha-forte
+```
+
+### 5. Criar o banco
+
+No Laragon: **Menu → MySQL → Criar banco de dados** → `portaria_remota`
+(ou pelo HeidiSQL, com o charset `utf8mb4_unicode_ci`).
+
+```bash
+php artisan migrate --seed
+```
+
+O `--seed` cria os perfis de acesso, o super admin (se configurado no `.env`) e um **Condomínio Demonstração**.
+
+### 6. Criar o super admin (se não configurou no `.env`)
+
+```bash
+php artisan portaria:criar-admin
+```
+
+### 7. Acessar
+
+Clique em **Recarregar** no Laragon e abra **http://portariaremota.test**.
+
+No primeiro login, o super admin é levado para **Configurações → Segurança** para **ativar a verificação em duas etapas (2FA)**. Use um aplicativo autenticador no celular (Google Authenticator, Microsoft Authenticator, Authy…).
+
+---
+
+## Comandos úteis
+
+| Comando | Para quê |
+|---|---|
+| `composer dev` | Ambiente de desenvolvimento (servidor, fila, logs e Vite juntos) |
+| `npm run build` | Gera os arquivos de tela (CSS/JS) |
+| `php artisan test` | Roda os testes automáticos |
+| `composer lint` | Formata o código no padrão do projeto |
+| `php artisan portaria:criar-admin` | Cria ou promove um super admin |
+| `php artisan db:seed --class=PerfisSeeder` | Atualiza perfis e permissões |
+
+## Perfis de acesso
+
+Os perfis valem **por condomínio**: a mesma pessoa pode ser síndica em um condomínio e moradora em outro.
+
+| Perfil | Pode |
+|---|---|
+| **Super admin** | Tudo, em todos os condomínios |
+| **Operador da central** | Atender chamadas, ver câmeras, abrir, registrar ocorrências (exige 2FA) |
+| **Síndico / administrador** | Gerenciar cadastros e usuários do condomínio, ver histórico |
+| **Porteiro local** | Operar pela portaria física |
+| **Morador** | Abrir os acessos liberados, autorizar visitantes, ver o próprio histórico |
+
+As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
+
+## Estrutura do código (principais pontos)
+
+| Caminho | O que é |
+|---|---|
+| `app/Enums/` | Perfis, permissões e modos de operação |
+| `app/Models/Condominio.php` | Condomínio |
+| `app/Support/CondominioAtual.php` | Controla qual condomínio o usuário está operando |
+| `app/Http/Middleware/` | Condomínio atual, 2FA obrigatório e bloqueio de usuário inativo |
+| `config/portaria.php` | Configurações próprias do sistema |
+| `lang/pt_BR*` | Traduções |
+| `docs/PROJETO.md` | Documento do projeto |

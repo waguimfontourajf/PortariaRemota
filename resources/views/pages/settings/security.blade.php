@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\Attributes\On;
 
-new #[Title('Security settings')] class extends Component {
+new #[Title('Segurança')] class extends Component {
     use PasswordValidationRules;
 
     public string $current_password = '';

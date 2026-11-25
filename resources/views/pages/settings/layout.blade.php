@@ -14,6 +14,16 @@
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
         <div class="mt-5 w-full max-w-lg">
+            @if (auth()->user()->precisaDeDoisFatores() && ! auth()->user()->temDoisFatoresAtivo())
+                <flux:callout
+                    variant="warning"
+                    icon="shield-exclamation"
+                    class="mb-6"
+                    :heading="__('Ative a verificação em duas etapas (2FA)')"
+                    :text="__('Seu perfil exige 2FA. O restante do sistema fica bloqueado até a ativação. Instale um aplicativo autenticador no celular (Google Authenticator, Microsoft Authenticator etc.) e clique em Ativar 2FA.')"
+                />
+            @endif
+
             {{ $slot }}
         </div>
     </div>

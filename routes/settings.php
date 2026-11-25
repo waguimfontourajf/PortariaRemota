@@ -3,18 +3,15 @@
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', 'settings/profile');
+    Route::redirect('configuracoes', 'configuracoes/perfil');
 
-    Route::livewire('settings/profile', 'pages::settings.profile')->name('profile.edit');
-});
+    Route::livewire('configuracoes/perfil', 'pages::settings.profile')->name('profile.edit');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::livewire('settings/appearance', 'pages::settings.appearance')->name('appearance.edit');
+    Route::livewire('configuracoes/aparencia', 'pages::settings.appearance')->name('appearance.edit');
 
-    Route::livewire('settings/security', 'pages::settings.security')
+    Route::livewire('configuracoes/seguranca', 'pages::settings.security')
         ->middleware([
             'password.confirm',
         ])
         ->name('security.edit');
 });
-

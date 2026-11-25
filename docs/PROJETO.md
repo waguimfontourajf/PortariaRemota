@@ -25,9 +25,9 @@ Plataforma de **portaria remota** para condomínios, que substitui ou complement
 | Item | Escolha | Observação |
 |---|---|---|
 | Linguagem | PHP 8.3+ orientado a objetos | |
-| Framework | Laravel (versão estável mais recente) | login, filas, agendador, API |
+| Framework | Laravel 13 + Fortify (login/2FA) | login, filas, agendador, API |
 | Banco | MySQL 8 | |
-| Telas | Blade + Livewire + Tailwind CSS | 100% responsivo, mantém tudo em PHP |
+| Telas | Blade + Livewire 4 + Flux UI + Tailwind CSS | 100% responsivo, mantém tudo em PHP |
 | Tempo real | Laravel Reverb (WebSocket) | status dos dispositivos, chamadas e eventos ao vivo |
 | Permissões | spatie/laravel-permission | perfis por condomínio |
 | Auditoria | spatie/laravel-activitylog | quem alterou cada cadastro |
@@ -243,7 +243,7 @@ Todas as tabelas importantes têm `uuid`, porque é isso que permite sincronizar
 
 | Etapa | Entrega | Testável em |
 |---|---|---|
-| **0. Fundação** | Projeto Laravel, login, 2FA, perfis, layout responsivo, multi-condomínio | navegador |
+| **0. Fundação** ✅ | Projeto Laravel, login, 2FA, perfis, layout responsivo, multi-condomínio | navegador |
 | **1. Cadastros** | condomínios, blocos, unidades, pessoas, usuários | navegador |
 | **2. Relés + pontos de acesso** | drivers HTTP genérico, Shelly e Tuya; botão ABRIR; histórico | **bancada (bocal + Shelly)** |
 | **3. Tempo real** | Reverb, status online/offline, eventos ao vivo, demais drivers de relé | bancada |

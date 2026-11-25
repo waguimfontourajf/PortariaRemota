@@ -3,15 +3,19 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Middleware\DefinirCondominioAtual;
+use App\Http\Middleware\ExigirDoisFatores;
+use App\Models\User;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Fortify;
 use Livewire\Livewire;
-
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -29,6 +33,7 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureActions();
+        $this->configureAuthentication();
         $this->configureViews();
         $this->configureRateLimiting();
         $this->configurePasswordConfirmation();
@@ -41,7 +46,33 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Livewire::addPersistentMiddleware([
             RequirePassword::class,
+            DefinirCondominioAtual::class,
+            ExigirDoisFatores::class,
         ]);
+    }
+
+    /**
+     * Login: recusa usuários desativados e registra o último acesso.
+     */
+    private function configureAuthentication(): void
+    {
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $usuario = User::where('email', $request->input(Fortify::username()))->first();
+
+            if (! $usuario || ! Hash::check((string) $request->input('password'), $usuario->password)) {
+                return null;
+            }
+
+            if (! $usuario->ativo) {
+                throw ValidationException::withMessages([
+                    Fortify::username() => __('Seu usuário está desativado. Procure o administrador.'),
+                ]);
+            }
+
+            $usuario->forceFill(['ultimo_login_em' => now()])->saveQuietly();
+
+            return $usuario;
+        });
     }
 
     /**
@@ -78,6 +109,5 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($throttleKey);
         });
-
     }
 }

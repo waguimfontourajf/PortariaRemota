@@ -36,6 +36,16 @@ class UserFactory extends Factory
         ];
     }
 
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => ['super_admin' => true]);
+    }
+
+    public function inativo(): static
+    {
+        return $this->state(fn (array $attributes) => ['ativo' => false]);
+    }
+
     /**
      * Indicate that the model's email address should be unverified.
      */
