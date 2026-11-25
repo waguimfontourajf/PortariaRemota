@@ -107,7 +107,7 @@ No cadastro do dispositivo, um **combo box** lista os drivers. Ao escolher um, o
 |---|---|---|---|
 | 1 | **HTTP genérico** | URL configurável (GET/POST, auth) | cobre muitas placas |
 | 2 | **Shelly** Gen1 / Gen2 / Gen3 / Gen4 | HTTP local (RPC) + MQTT | **recomendado** pelo custo-benefício. Para portão, usar modelo de **contato seco** (Shelly 1 / Plus 1 / 1 Gen3) |
-| 3 | **Tuya / Smart Life** | local (chave local) + nuvem | provável protocolo do bocal de teste |
+| 3 | **Tuya / Smart Life** | **local** (chave local; nuvem só para obter a chave uma vez) | bocal de teste. Guia: `docs/TUYA.md` |
 | 4 | **eWeLink / Sonoff** | modo LAN + nuvem | |
 | 5 | **Tasmota** (Sonoff reflashado e similares) | HTTP + MQTT | |
 | 6 | **MQTT genérico** | tópico e payload configuráveis | |
@@ -245,7 +245,7 @@ Todas as tabelas importantes têm `uuid`, porque é isso que permite sincronizar
 |---|---|---|
 | **0. Fundação** ✅ | Projeto Laravel, login, 2FA, perfis, layout responsivo, multi-condomínio | navegador |
 | **1. Cadastros** ✅ | condomínios, blocos, unidades, pessoas, usuários | navegador |
-| **2. Relés + pontos de acesso** | drivers HTTP genérico, Shelly e Tuya; botão ABRIR; histórico | **bancada (bocal + Shelly)** |
+| **2. Relés + pontos de acesso** ✅ | drivers HTTP genérico, Shelly e Tuya; botão ABRIR; histórico | **bancada (bocal + Shelly)** |
 | **3. Tempo real** | Reverb, status online/offline, eventos ao vivo, demais drivers de relé | bancada |
 | **4. PWA do morador** | app instalável, abrir, visitantes, histórico | celular |
 | **5. Câmeras** | go2rtc, câmeras no painel e no app | câmera IP de teste |

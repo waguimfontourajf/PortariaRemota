@@ -66,11 +66,24 @@
             </div>
         @endif
 
-        <flux:card class="flex flex-col gap-2">
-            <flux:heading>{{ __('Próximas etapas') }}</flux:heading>
-            <flux:text>
-                {{ __('Pontos de acesso, relés, câmeras e interfone chegam nas próximas etapas.') }}
-            </flux:text>
-        </flux:card>
+        @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::HistoricoVer->value))
+            @php($eventos = $condominioAtual->eventosAcesso()->latest('id')->limit(8)->get())
+            <flux:card class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <flux:heading>{{ __('Últimos acessos') }}</flux:heading>
+                    <flux:link :href="route('acessos.historico')" wire:navigate class="text-sm">{{ __('Ver histórico') }}</flux:link>
+                </div>
+                @forelse ($eventos as $e)
+                    <div class="flex items-center gap-3 text-sm">
+                        <flux:badge size="sm" :color="$e->resultado->cor()">{{ $e->resultado->label() }}</flux:badge>
+                        <span class="font-medium text-zinc-800 dark:text-white">{{ $e->ponto_nome }}</span>
+                        <span class="truncate text-zinc-500">{{ $e->usuario_nome ?? __('Sistema') }}</span>
+                        <span class="ms-auto whitespace-nowrap text-zinc-500">{{ $e->created_at->timezone($condominioAtual->fuso_horario)->format('d/m H:i') }}</span>
+                    </div>
+                @empty
+                    <flux:text>{{ __('Nenhum acesso registrado ainda.') }}</flux:text>
+                @endforelse
+            </flux:card>
+        @endif
     </div>
 </x-layouts::app>

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Dispositivos\RegistroDeDrivers;
 use App\Models\User;
 use App\Support\CondominioAtual;
 use Carbon\CarbonImmutable;
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(CondominioAtual::class);
+        $this->app->singleton(RegistroDeDrivers::class, fn () => new RegistroDeDrivers(config('portaria.drivers.reles', [])));
     }
 
     /**

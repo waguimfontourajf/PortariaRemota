@@ -1,5 +1,10 @@
 <?php
 
+use App\Dispositivos\Drivers\HttpGenerico;
+use App\Dispositivos\Drivers\Shelly;
+use App\Dispositivos\Drivers\Simulador;
+use App\Dispositivos\Drivers\TuyaLocal;
+
 return [
 
     /*
@@ -38,6 +43,40 @@ return [
         'nome' => env('PORTARIA_ADMIN_NOME', 'Administrador'),
         'email' => env('PORTARIA_ADMIN_EMAIL'),
         'senha' => env('PORTARIA_ADMIN_SENHA'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Drivers de dispositivos
+    |--------------------------------------------------------------------------
+    |
+    | Cada classe aparece como uma opção na caixa de seleção "Modelo / driver"
+    | do cadastro de dispositivos. Para suportar um equipamento novo, crie a
+    | classe em app/Dispositivos/Drivers e adicione-a aqui.
+    |
+    */
+
+    'drivers' => [
+        'reles' => [
+            Shelly::class,
+            TuyaLocal::class,
+            HttpGenerico::class,
+            Simulador::class,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Acionamento
+    |--------------------------------------------------------------------------
+    */
+
+    'acionamento' => [
+        // Ignora um segundo comando para o mesmo ponto enquanto o primeiro não termina.
+        'trava_segundos' => 10,
+        // Limites do tempo de pulso configurável por ponto de acesso.
+        'pulso_minimo_ms' => 100,
+        'pulso_maximo_ms' => 30000,
     ],
 
 ];

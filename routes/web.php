@@ -23,6 +23,16 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('cadastros/pessoas/nova', 'pages::cadastros.pessoas.form')->name('pessoas.criar');
     Route::livewire('cadastros/pessoas/{pessoa}/editar', 'pages::cadastros.pessoas.form')->name('pessoas.editar');
 
+    // Operação
+    Route::livewire('abrir', 'pages::acessos.abrir')->name('acessos.abrir');
+    Route::livewire('historico', 'pages::acessos.historico')->name('acessos.historico');
+
+    // Equipamentos (configuração técnica: super admin)
+    Route::livewire('equipamentos/dispositivos', 'pages::dispositivos.index')->name('dispositivos.index');
+    Route::livewire('equipamentos/dispositivos/novo', 'pages::dispositivos.form')->name('dispositivos.criar');
+    Route::livewire('equipamentos/dispositivos/{dispositivo}/editar', 'pages::dispositivos.form')->name('dispositivos.editar');
+    Route::livewire('equipamentos/pontos-de-acesso', 'pages::dispositivos.pontos')->name('pontos.index');
+
     // Usuários do condomínio atual
     Route::livewire('usuarios', 'pages::usuarios.index')->name('usuarios.index');
     Route::livewire('usuarios/novo', 'pages::usuarios.form')->name('usuarios.criar');

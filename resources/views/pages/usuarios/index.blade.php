@@ -138,7 +138,7 @@ new #[Title('Usuários')] class extends Component {
                             @endforeach
                         </div>
                     </flux:table.cell>
-                    <flux:table.cell class="max-lg:hidden">{{ $usuario->ultimo_login_em?->timezone($condominioAtual?->fuso_horario ?? config('app.timezone'))->format('d/m/Y H:i') ?? __('Nunca') }}</flux:table.cell>
+                    <flux:table.cell class="max-lg:hidden">{{ $usuario->ultimo_login_em?->timezone($this->condominio()->fuso_horario ?? config('app.timezone'))->format('d/m/Y H:i') ?? __('Nunca') }}</flux:table.cell>
                     <flux:table.cell align="end">
                         <flux:dropdown position="bottom" align="end">
                             <flux:button variant="ghost" size="sm" icon="ellipsis-horizontal" inset="top bottom" :aria-label="__('Ações')" />

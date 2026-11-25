@@ -17,7 +17,28 @@
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Painel') }}
                     </flux:sidebar.item>
+                    @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::AcessosAbrir->value))
+                        <flux:sidebar.item icon="lock-open" :href="route('acessos.abrir')" :current="request()->routeIs('acessos.abrir')" wire:navigate>
+                            {{ __('Abrir') }}
+                        </flux:sidebar.item>
+                    @endif
+                    @if ($condominioAtual && (auth()->user()->can(\App\Enums\Permissao::HistoricoVer->value) || auth()->user()->can(\App\Enums\Permissao::HistoricoProprioVer->value)))
+                        <flux:sidebar.item icon="clock" :href="route('acessos.historico')" :current="request()->routeIs('acessos.historico')" wire:navigate>
+                            {{ __('Histórico') }}
+                        </flux:sidebar.item>
+                    @endif
                 </flux:sidebar.group>
+
+                @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::DispositivosGerenciar->value))
+                    <flux:sidebar.group :heading="__('Equipamentos')" class="grid">
+                        <flux:sidebar.item icon="cpu-chip" :href="route('dispositivos.index')" :current="request()->routeIs('dispositivos.*')" wire:navigate>
+                            {{ __('Dispositivos') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="arrows-right-left" :href="route('pontos.index')" :current="request()->routeIs('pontos.*')" wire:navigate>
+                            {{ __('Pontos de acesso') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
 
                 @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::CadastrosGerenciar->value))
                     <flux:sidebar.group :heading="__('Cadastros')" class="grid">

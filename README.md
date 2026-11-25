@@ -99,6 +99,9 @@ No primeiro login, o super admin é levado para **Configurações → Segurança
 | `composer lint` | Formata o código no padrão do projeto |
 | `php artisan portaria:criar-admin` | Cria ou promove um super admin |
 | `php artisan db:seed --class=PerfisSeeder` | Atualiza perfis e permissões |
+| `php artisan portaria:dispositivo-testar` | Testa um dispositivo (use `--detalhes` para diagnóstico) |
+| `php artisan portaria:tuya-procurar` | Encontra aparelhos Tuya na rede (IP, ID, versão) |
+| `php artisan portaria:tuya-chaves` | Busca as chaves locais dos aparelhos Tuya (uma vez) |
 
 ## Perfis de acesso
 
@@ -127,4 +130,7 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `app/Http/Middleware/` | Condomínio atual, 2FA obrigatório e bloqueio de usuário inativo |
 | `config/portaria.php` | Configurações próprias do sistema |
 | `lang/pt_BR*` | Traduções |
+| `app/Dispositivos/` | Drivers de relé (Shelly, Tuya, HTTP genérico, simulador) e protocolo Tuya |
+| `app/Acoes/AcionarPontoDeAcesso.php` | Único caminho para abrir um portão (permissão, trava, histórico) |
 | `docs/PROJETO.md` | Documento do projeto |
+| `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |

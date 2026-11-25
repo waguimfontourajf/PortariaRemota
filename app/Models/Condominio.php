@@ -96,6 +96,30 @@ class Condominio extends Model
     }
 
     /**
+     * @return HasMany<Dispositivo, $this>
+     */
+    public function dispositivos(): HasMany
+    {
+        return $this->hasMany(Dispositivo::class);
+    }
+
+    /**
+     * @return HasMany<PontoAcesso, $this>
+     */
+    public function pontosAcesso(): HasMany
+    {
+        return $this->hasMany(PontoAcesso::class);
+    }
+
+    /**
+     * @return HasMany<EventoAcesso, $this>
+     */
+    public function eventosAcesso(): HasMany
+    {
+        return $this->hasMany(EventoAcesso::class);
+    }
+
+    /**
      * @return HasMany<Pessoa, $this>
      */
     public function pessoas(): HasMany
