@@ -263,7 +263,7 @@ Cada etapa termina com algo **funcionando de verdade** que você pode testar ant
 
 | # | Assunto | Decisão |
 |---|---|---|
-| 1 | Bocal de teste | ⏳ confirmar o nome do app (Tuya/Smart Life ou eWeLink) |
+| 1 | Bocal de teste | ✅ App **JWCOM SMART** (marca própria sobre a plataforma **Tuya**, também funciona no Smart Life) → **driver Tuya**. Testes no bocal da **Cozinha** |
 | 2 | Licença vencida | ✅ abertura de portões **continua liberada**; bloqueia só a gestão |
 | 3 | Nome comercial | ⏳ a definir (o sistema usa "Portaria Remota" provisoriamente, fácil de trocar) |
 | 4 | Subdomínio | ✅ `portariaremota.meusistema.api.br` (a criar) |
