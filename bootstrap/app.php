@@ -16,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Atrás do Cloudflare Tunnel, as requisições chegam ao Apache vindas do
+        // próprio servidor (cloudflared). Confia nesses proxies para obter o IP
+        // real do visitante e saber que o acesso original foi em HTTPS.
+        $middleware->trustProxies(at: array_filter(array_map('trim', explode(',', (string) env('PORTARIA_PROXIES_CONFIAVEIS', '127.0.0.1,::1')))));
+
         $middleware->web(append: [
             BloquearUsuarioInativo::class,
             DefinirCondominioAtual::class,
