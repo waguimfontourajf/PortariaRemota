@@ -4,15 +4,22 @@ namespace App\Dispositivos\Drivers;
 
 use App\Dispositivos\Campo;
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\HorarioAcesso;
 use App\Models\Dispositivo;
 
 /**
  * Leitoras faciais Control iD (iDFace, iDFace Max) pela API de acesso.
  * Documentação: https://www.controlid.com.br/docs/access-api-pt/
  *
- * Fluxo: login.fcgi (sessão) → users (criar/alterar) → user_groups (grupo de
- * acesso) → user_set_image.fcgi (foto) → logout.fcgi.
+ * Fluxo: login.fcgi (sessão) → users (criar/alterar, com validade em
+ * begin_time/end_time) → user_groups (grupo de acesso) → user_set_image.fcgi
+ * (foto) → logout.fcgi.
+ *
+ * Horário: para o horário nº N, a leitora recebe time_zone, access_rule e
+ * group de id 1000+N (com time_spans, vínculo ao portal e ao grupo); a pessoa
+ * entra nesse grupo em vez do grupo padrão.
  */
 class ControlIdFacial extends LeitoraFacialBase
 {
@@ -38,52 +45,123 @@ class ControlIdFacial extends LeitoraFacialBase
                 'door' => 'Relé da própria leitora',
                 'sec_box' => 'Módulo de acionamento externo (SecBox)',
             ]),
-            new Campo('grupo', 'Grupo de acesso (ID)', 'numero', padrao: 1, ajuda: 'Grupo da leitora com permissão de passagem. Normalmente 1 (Padrão).', regras: ['integer', 'min:1']),
+            new Campo('grupo', 'Grupo de acesso (ID)', 'numero', padrao: 1, ajuda: 'Grupo da leitora com permissão de passagem, para quem não tem horário. Normalmente 1 (Padrão).', regras: ['integer', 'min:1']),
+            new Campo('portal', 'Portal (ID)', 'numero', padrao: 1, ajuda: 'Usado nos horários de acesso. Normalmente 1.', regras: ['integer', 'min:1']),
         ]);
     }
 
-    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg): Resultado
+    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg, RegrasDeAcesso $regras): Resultado
     {
-        return $this->executar(fn () => $this->comSessao($dispositivo, function (string $sessao) use ($dispositivo, $codigo, $nome, $fotoJpeg) {
-            $nome = self::nomeCurto($nome, 100);
+        return $this->executar(fn () => $this->comSessao($dispositivo, function (string $sessao) use ($dispositivo, $codigo, $nome, $fotoJpeg, $regras) {
+            // begin_time/end_time = 0 desliga a validade. Atenção: ao vencer o
+            // end_time, a própria leitora apaga as credenciais da pessoa.
+            $dados = [
+                'name' => self::nomeCurto($nome, 100),
+                'begin_time' => $regras->de?->timestamp ?? 0,
+                'end_time' => $regras->ate?->timestamp ?? 0,
+            ];
             $existe = ($this->api($dispositivo, $sessao, 'load_objects.fcgi', [
                 'object' => 'users', 'where' => ['users' => ['id' => $codigo]],
             ])['users'] ?? []) !== [];
 
             if ($existe) {
                 $this->api($dispositivo, $sessao, 'modify_objects.fcgi', [
-                    'object' => 'users', 'values' => ['name' => $nome], 'where' => ['users' => ['id' => $codigo]],
+                    'object' => 'users', 'values' => $dados, 'where' => ['users' => ['id' => $codigo]],
                 ]);
             } else {
                 $this->api($dispositivo, $sessao, 'create_objects.fcgi', [
-                    'object' => 'users', 'values' => [['id' => $codigo, 'name' => $nome, 'registration' => (string) $codigo]],
+                    'object' => 'users', 'values' => [['id' => $codigo, 'registration' => (string) $codigo, ...$dados]],
                 ]);
             }
 
             // Sem grupo de acesso, a leitora reconhece o rosto mas nega a passagem.
-            $grupo = (int) $dispositivo->opcao('grupo', 1);
-            $temGrupo = ($this->api($dispositivo, $sessao, 'load_objects.fcgi', [
-                'object' => 'user_groups', 'where' => ['user_groups' => ['user_id' => $codigo, 'group_id' => $grupo]],
-            ])['user_groups'] ?? []) !== [];
+            $grupo = $regras->horario
+                ? $this->configurarHorario($dispositivo, $sessao, $regras->horario)
+                : (int) $dispositivo->opcao('grupo', 1);
 
-            if (! $temGrupo) {
-                $this->api($dispositivo, $sessao, 'create_objects.fcgi', [
-                    'object' => 'user_groups', 'values' => [['user_id' => $codigo, 'group_id' => $grupo]],
-                ]);
-            }
+            $this->api($dispositivo, $sessao, 'destroy_objects.fcgi', [
+                'object' => 'user_groups', 'where' => ['user_groups' => ['user_id' => $codigo]],
+            ]);
+            $this->api($dispositivo, $sessao, 'create_objects.fcgi', [
+                'object' => 'user_groups', 'values' => [['user_id' => $codigo, 'group_id' => $grupo]],
+            ]);
 
             $caminho = 'user_set_image.fcgi?'.http_build_query(['user_id' => $codigo, 'timestamp' => time(), 'match' => 0, 'session' => $sessao]);
             $resposta = $this->registrar('POST', $caminho, $this->http($dispositivo, false)
                 ->withBody($fotoJpeg, 'application/octet-stream')
                 ->post($this->base($dispositivo).'/'.$caminho));
-            $dados = $resposta->json() ?? [];
+            $retorno = $resposta->json() ?? [];
 
-            if ($resposta->failed() || ($dados['success'] ?? true) === false) {
-                throw new ExcecaoDeComunicacao('A leitora recusou a foto: '.$this->erroDaFoto($dados, $resposta->body()));
+            if ($resposta->failed() || ($retorno['success'] ?? true) === false) {
+                throw new ExcecaoDeComunicacao('A leitora recusou a foto: '.$this->erroDaFoto($retorno, $resposta->body()));
             }
 
             return Resultado::ok('Pessoa enviada para a leitora.');
         }));
+    }
+
+    /**
+     * Cria/atualiza na leitora o horário (time_zone + time_span + access_rule
+     * + group, todos com id 1000+N) e devolve o id do grupo.
+     */
+    private function configurarHorario(Dispositivo $dispositivo, string $sessao, HorarioAcesso $horario): int
+    {
+        $id = 1000 + $horario->numero;
+
+        if ($this->horarioJaConfigurado($dispositivo, $horario)) {
+            return $id;
+        }
+
+        $nome = self::nomeCurto('Portaria: '.$horario->nome, 60);
+        $this->garantir($dispositivo, $sessao, 'time_zones', $id, ['name' => $nome]);
+        $this->api($dispositivo, $sessao, 'destroy_objects.fcgi', [
+            'object' => 'time_spans', 'where' => ['time_spans' => ['time_zone_id' => $id]],
+        ]);
+
+        $dias = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        $faixa = ['time_zone_id' => $id, 'start' => HorarioAcesso::segundos($horario->inicio), 'end' => HorarioAcesso::segundos($horario->fim), 'hol1' => 0, 'hol2' => 0, 'hol3' => 0];
+        foreach ($dias as $numero => $dia) {
+            $faixa[$dia] = in_array($numero, $horario->dias, true) ? 1 : 0;
+        }
+        $this->api($dispositivo, $sessao, 'create_objects.fcgi', ['object' => 'time_spans', 'values' => [$faixa]]);
+
+        $this->garantir($dispositivo, $sessao, 'access_rules', $id, ['name' => $nome, 'type' => 1, 'priority' => 0]);
+        $this->garantir($dispositivo, $sessao, 'groups', $id, ['name' => $nome]);
+        $this->vincular($dispositivo, $sessao, 'access_rule_time_zones', ['access_rule_id' => $id, 'time_zone_id' => $id]);
+        $this->vincular($dispositivo, $sessao, 'portal_access_rules', ['portal_id' => (int) $dispositivo->opcao('portal', 1), 'access_rule_id' => $id]);
+        $this->vincular($dispositivo, $sessao, 'group_access_rules', ['group_id' => $id, 'access_rule_id' => $id]);
+
+        $this->marcarHorarioConfigurado($dispositivo, $horario);
+
+        return $id;
+    }
+
+    /**
+     * Cria o objeto com este id, ou altera se já existir.
+     *
+     * @param  array<string, mixed>  $valores
+     */
+    private function garantir(Dispositivo $dispositivo, string $sessao, string $objeto, int $id, array $valores): void
+    {
+        $existe = ($this->api($dispositivo, $sessao, 'load_objects.fcgi', ['object' => $objeto, 'where' => [$objeto => ['id' => $id]]])[$objeto] ?? []) !== [];
+
+        $this->api($dispositivo, $sessao, $existe ? 'modify_objects.fcgi' : 'create_objects.fcgi', $existe
+            ? ['object' => $objeto, 'values' => $valores, 'where' => [$objeto => ['id' => $id]]]
+            : ['object' => $objeto, 'values' => [['id' => $id, ...$valores]]]);
+    }
+
+    /**
+     * Cria o vínculo (tabela de ligação) se ainda não existir.
+     *
+     * @param  array<string, int>  $campos
+     */
+    private function vincular(Dispositivo $dispositivo, string $sessao, string $objeto, array $campos): void
+    {
+        $existe = ($this->api($dispositivo, $sessao, 'load_objects.fcgi', ['object' => $objeto, 'where' => [$objeto => $campos]])[$objeto] ?? []) !== [];
+
+        if (! $existe) {
+            $this->api($dispositivo, $sessao, 'create_objects.fcgi', ['object' => $objeto, 'values' => [$campos]]);
+        }
     }
 
     public function removerPessoa(Dispositivo $dispositivo, int $codigo): Resultado

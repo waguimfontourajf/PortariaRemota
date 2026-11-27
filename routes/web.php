@@ -21,6 +21,7 @@ Route::middleware(['auth'])->group(function () {
     // Cadastros do condomínio atual
     Route::livewire('cadastros/blocos', 'pages::cadastros.blocos')->name('blocos.index');
     Route::livewire('cadastros/unidades', 'pages::cadastros.unidades')->name('unidades.index');
+    Route::livewire('cadastros/horarios', 'pages::cadastros.horarios')->name('horarios.index');
     Route::livewire('cadastros/pessoas', 'pages::cadastros.pessoas.index')->name('pessoas.index');
     Route::livewire('cadastros/pessoas/nova', 'pages::cadastros.pessoas.form')->name('pessoas.criar');
     Route::livewire('cadastros/pessoas/{pessoa}/editar', 'pages::cadastros.pessoas.form')->name('pessoas.editar');

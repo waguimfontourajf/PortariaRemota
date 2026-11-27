@@ -5,6 +5,7 @@ namespace Tests\Feature\Portaria;
 use App\Enums\Perfil;
 use App\Models\Bloco;
 use App\Models\Dispositivo;
+use App\Models\HorarioAcesso;
 use App\Models\Pessoa;
 use App\Models\Unidade;
 use App\Support\FotoDePessoa;
@@ -273,5 +274,97 @@ class LeitorasFaciaisTest extends CadastrosTestCase
         $totais = $servico->sincronizarLeitora($leitora->fresh());
         $this->assertSame(1, $totais['removidas']);
         $this->assertDatabaseMissing('dispositivo_pessoa', ['dispositivo_id' => $leitora->id, 'pessoa_id' => $zelador->id]);
+    }
+
+    private function horario(): HorarioAcesso
+    {
+        $horario = new HorarioAcesso(['nome' => 'Diaristas', 'dias' => [1, 2, 3, 4, 5], 'inicio' => '07:00:00', 'fim' => '18:00:59']);
+        $horario->condominio_id = $this->condominio->id;
+        $horario->numero = 1;
+        $horario->save();
+
+        return $horario;
+    }
+
+    public function test_intelbras_recebe_horario_e_validade(): void
+    {
+        Http::fake(['*' => Http::response('OK')]);
+        $this->leitora('intelbras_facial');
+        $pessoa = $this->pessoaLiberada(['horario_acesso_id' => $this->horario()->id, 'acesso_ate' => '2027-03-31']);
+
+        $resultado = app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa->refresh())[0];
+
+        $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
+        Http::assertSent(fn (Request $r) => str_contains(urldecode($r->url()), 'AccessTimeSchedule[1].TimeSchedule[1][0]=1 07:00:00-18:00:59')
+            && str_contains(urldecode($r->url()), 'AccessTimeSchedule[1].TimeSchedule[0][0]=0 00:00:00-00:00:00'));
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'AccessUser.cgi?action=insertMulti')
+            && $r['UserList'][0]['TimeSections'] === [1] && $r['UserList'][0]['ValidTo'] === '2027-03-31 23:59:59');
+    }
+
+    public function test_hikvision_recebe_horario_e_validade(): void
+    {
+        Http::fake(['*' => Http::response(['statusCode' => 1, 'statusString' => 'OK'])]);
+        $this->leitora('hikvision_facial');
+        $pessoa = $this->pessoaLiberada(['horario_acesso_id' => $this->horario()->id, 'acesso_de' => '2026-12-01']);
+
+        $resultado = app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa->refresh())[0];
+
+        $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/UserRightWeekPlanCfg/2')
+            && $r['UserRightWeekPlanCfg']['WeekPlanCfg'][1]['week'] === 'Monday' && $r['UserRightWeekPlanCfg']['WeekPlanCfg'][1]['enable'] === true
+            && $r['UserRightWeekPlanCfg']['WeekPlanCfg'][0]['enable'] === false);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/UserRightPlanTemplate/2') && $r['UserRightPlanTemplate']['weekPlanNo'] === 2);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'UserInfo/SetUp')
+            && $r['UserInfo']['RightPlan'][0]['planTemplateNo'] === '2'
+            && $r['UserInfo']['Valid']['enable'] === true && $r['UserInfo']['Valid']['beginTime'] === '2026-12-01T00:00:00');
+    }
+
+    public function test_control_id_recebe_horario_como_grupo(): void
+    {
+        Http::fake([
+            '*/login.fcgi' => Http::response(['session' => 'abc123']),
+            '*/load_objects.fcgi*' => Http::response([]),
+            '*/user_set_image.fcgi*' => Http::response(['success' => true]),
+            '*' => Http::response([]),
+        ]);
+        $this->leitora('controlid_facial');
+        $pessoa = $this->pessoaLiberada(['horario_acesso_id' => $this->horario()->id]);
+
+        $resultado = app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa->refresh())[0];
+
+        $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'time_spans'
+            && $r['values'][0]['mon'] === 1 && $r['values'][0]['sun'] === 0 && $r['values'][0]['start'] === 7 * 3600 && $r['values'][0]['time_zone_id'] === 1001);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'user_groups' && $r['values'][0]['group_id'] === 1001);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'portal_access_rules');
+    }
+
+    public function test_editar_horario_reenvia_quem_usa(): void
+    {
+        Http::fake(['*' => Http::response('OK')]);
+        $leitora = $this->leitora('intelbras_facial');
+        $horario = $this->horario();
+        $this->pessoaLiberada(['horario_acesso_id' => $horario->id]);
+        app(SincronizacaoFacial::class)->sincronizarLeitora($leitora);
+
+        $horario->update(['fim' => '20:00:59']);
+        $totais = app(SincronizacaoFacial::class)->sincronizarLeitora($leitora);
+
+        $this->assertSame(1, $totais['enviadas']);
+        Http::assertSent(fn (Request $r) => str_contains(urldecode($r->url()), '07:00:00-20:00:59'));
+    }
+
+    public function test_cadastra_horario_com_numero_sequencial(): void
+    {
+        $this->entrarComo($this->usuarioCom(Perfil::Sindico));
+
+        Livewire::test('pages::cadastros.horarios')
+            ->set('nome', 'Comercial')->set('dias', ['1', '2', '3', '4', '5'])->set('inicio', '08:00')->set('fim', '17:00')
+            ->call('salvar')->assertHasNoErrors();
+
+        $horario = HorarioAcesso::where('nome', 'Comercial')->firstOrFail();
+        $this->assertSame(1, $horario->numero);
+        $this->assertSame([1, 2, 3, 4, 5], $horario->dias);
+        $this->assertSame('Seg a Sex · 08:00 às 17:00', $horario->descricao());
     }
 }

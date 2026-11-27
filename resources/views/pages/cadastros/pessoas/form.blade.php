@@ -40,6 +40,10 @@ new class extends Component {
 
     public bool $biometria_autorizada = false;
 
+    public string $horario_acesso_id = '';
+    public string $acesso_de = '';
+    public string $acesso_ate = '';
+
     #[Locked]
     public bool $temFoto = false;
 
@@ -67,6 +71,9 @@ new class extends Component {
             $this->temFoto = $pessoa->foto_path !== null;
             $this->versaoFoto = (string) $pessoa->updated_at?->timestamp;
             $this->biometria_autorizada = $pessoa->biometria_autorizada_em !== null;
+            $this->horario_acesso_id = (string) $pessoa->horario_acesso_id;
+            $this->acesso_de = (string) $pessoa->acesso_de?->format('Y-m-d');
+            $this->acesso_ate = (string) $pessoa->acesso_ate?->format('Y-m-d');
             $this->vinculos = $pessoa->unidades->map(fn (Unidade $u) => [
                 'unidade_id' => (string) $u->id,
                 'vinculo' => $u->pivot->vinculo,
@@ -92,6 +99,12 @@ new class extends Component {
     public function usuario()
     {
         return $this->pessoaId ? Pessoa::find($this->pessoaId)?->usuario : null;
+    }
+
+    #[Computed]
+    public function horarios()
+    {
+        return $this->condominio()->horariosAcesso()->orderBy('nome')->get();
     }
 
     #[Computed]
@@ -141,12 +154,15 @@ new class extends Component {
             'observacoes' => ['nullable', 'string', 'max:2000'],
             'foto' => ['nullable', 'file', 'max:15360'],
             'biometria_autorizada' => ['boolean'],
+            'horario_acesso_id' => ['nullable', Rule::exists('horarios_acesso', 'id')->where('condominio_id', $condominioId)],
+            'acesso_de' => ['nullable', 'date'],
+            'acesso_ate' => array_filter(['nullable', 'date', $this->acesso_de !== '' ? 'after_or_equal:acesso_de' : null]),
             'vinculos' => ['array'],
             'vinculos.*.unidade_id' => ['required', 'distinct', Rule::exists('unidades', 'id')->where('condominio_id', $condominioId)],
             'vinculos.*.vinculo' => ['required', Rule::enum(VinculoUnidade::class)],
             'vinculos.*.responsavel' => ['boolean'],
         ], attributes: [
-            'cpf' => 'CPF', 'rg' => 'RG', 'data_nascimento' => 'data de nascimento', 'foto' => 'foto',
+            'cpf' => 'CPF', 'rg' => 'RG', 'data_nascimento' => 'data de nascimento', 'foto' => 'foto', 'horario_acesso_id' => 'horário', 'acesso_de' => 'início da validade', 'acesso_ate' => 'fim da validade',
             'vinculos.*.unidade_id' => 'unidade', 'vinculos.*.vinculo' => 'vínculo',
         ], messages: [
             'vinculos.*.unidade_id.distinct' => __('Esta unidade foi adicionada mais de uma vez.'),
@@ -302,6 +318,18 @@ new class extends Component {
 
                     <flux:checkbox wire:model="biometria_autorizada" :label="__('A pessoa (ou o responsável legal) autorizou o uso da foto para reconhecimento facial')"
                         :description="__('Exigido pela LGPD (dado biométrico). Sem esta autorização, a foto não é enviada às leitoras. Fica registrado quem marcou e quando.')" />
+
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <flux:select wire:model="horario_acesso_id" :label="__('Horário de acesso')">
+                            <flux:select.option value="">{{ __('Qualquer hora') }}</flux:select.option>
+                            @foreach ($this->horarios as $h)
+                                <flux:select.option :value="$h->id">{{ $h->nome }} ({{ $h->descricao() }})</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:input wire:model="acesso_de" type="date" :label="__('Liberado a partir de')" />
+                        <flux:input wire:model="acesso_ate" type="date" :label="__('Liberado até')" />
+                    </div>
+                    <flux:text class="text-xs">{{ __('Aplicados pela leitora facial. Deixe em branco para sem restrição. Horários são cadastrados em Cadastros → Horários de acesso.') }}</flux:text>
 
                     @if ($this->leitoras->isNotEmpty() && $pessoaId)
                         <div class="space-y-1 text-sm">

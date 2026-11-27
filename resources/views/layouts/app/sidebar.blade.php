@@ -51,6 +51,9 @@
                         <flux:sidebar.item icon="users" :href="route('pessoas.index')" :current="request()->routeIs('pessoas.*')" wire:navigate>
                             {{ __('Pessoas') }}
                         </flux:sidebar.item>
+                        <flux:sidebar.item icon="clock" :href="route('horarios.index')" :current="request()->routeIs('horarios.*')" wire:navigate>
+                            {{ __('Horários de acesso') }}
+                        </flux:sidebar.item>
                     </flux:sidebar.group>
                 @endif
 

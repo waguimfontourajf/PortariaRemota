@@ -69,7 +69,26 @@ Testes, na própria tela:
 
 A leitora também pode ser usada num **ponto de acesso**, como um relé: o botão ABRIR do sistema abre a porta por ela.
 
-## 4. Sincronização
+## 4. Horários e validade
+
+- **Horários de acesso** (menu **Cadastros → Horários de acesso**): faixas como "Diaristas: seg a sex, 7h às 18h". Até 30 por condomínio; a faixa não pode passar da meia-noite.
+- No cadastro da pessoa, escolha o **Horário de acesso** e, se quiser, **Liberado a partir de / Liberado até** (ex.: prestador de uma reforma).
+- Sem horário e sem datas, a pessoa entra a qualquer hora.
+- Quem aplica as regras é a **leitora** (funciona sem rede). Ao editar um horário, todos que o usam são reenviados.
+
+Como cada marca recebe:
+
+| Marca | Validade | Horário |
+|---|---|---|
+| Intelbras | ValidFrom / ValidTo da pessoa | AccessTimeSchedule[nº do horário]; a pessoa aponta para ele |
+| Hikvision | Valid (begin/end) da pessoa | plano semanal + modelo nº (horário + 1); o modelo 1 é o padrão da leitora |
+| Control iD | begin_time / end_time da pessoa | grupo, regra e faixa de horário com id 1000 + nº do horário, ligados ao **Portal** (normalmente 1) |
+
+> **Control iD:** quando a data "Liberado até" vence, a **própria leitora apaga** as credenciais (inclusive a foto) da pessoa. Se depois a data for prorrogada, o sistema reenvia sozinho ao salvar.
+
+Depois de **resetar** uma leitora, use **Reenviar todas**: além das pessoas, os horários são regravados.
+
+## 5. Sincronização
 
 - **Automática:** ao salvar, ativar/desativar ou excluir uma pessoa, o sistema atualiza todas as leitoras do condomínio na hora. Se uma leitora estiver fora do ar, aparece um aviso e a pessoa fica marcada **com erro**.
 - **Sincronizar agora** (tela da leitora): envia quem mudou ou ficou com erro e remove quem saiu. Use na primeira carga, depois de trocar/resetar a leitora ou depois que ela ficou desligada.
@@ -81,7 +100,7 @@ php artisan portaria:leitoras-sincronizar            # todas as leitoras
 php artisan portaria:leitoras-sincronizar "Leitora portaria" --todas
 ```
 
-## 5. Erros comuns
+## 6. Erros comuns
 
 | Mensagem | O que fazer |
 |---|---|
@@ -91,7 +110,6 @@ php artisan portaria:leitoras-sincronizar "Leitora portaria" --todas
 | Este rosto já está cadastrado para outra pessoa | A mesma pessoa está duplicada no cadastro (ou na leitora, cadastrada à mão) |
 | Não respondeu como Intelbras/Hikvision | Driver errado para a marca/modelo, ou porta diferente de 80 |
 
-## 6. O que ainda não faz
+## 7. O que ainda não faz
 
-- **Horários e validade** por pessoa (ex.: diarista só de segunda a sexta): hoje todos os liberados têm acesso a qualquer hora.
 - **Histórico vindo da leitora** (quem passou pelo rosto): os acessos por reconhecimento facial ficam só na leitora por enquanto.

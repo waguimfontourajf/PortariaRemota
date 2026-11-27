@@ -2,6 +2,7 @@
 
 namespace App\Dispositivos\Contratos;
 
+use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
 use App\Models\Dispositivo;
 
@@ -15,9 +16,15 @@ use App\Models\Dispositivo;
 interface LeitoraFacial
 {
     /**
-     * Cria ou atualiza a pessoa na leitora, com a foto (JPEG até 200 KB).
+     * Cria ou atualiza a pessoa na leitora, com a foto (JPEG até 200 KB) e as
+     * regras de acesso (validade e horário semanal).
      */
-    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg): Resultado;
+    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg, RegrasDeAcesso $regras): Resultado;
+
+    /**
+     * Esquece o que já foi configurado na leitora (horários), para reenviar tudo.
+     */
+    public function esquecerConfiguracao(Dispositivo $dispositivo): void;
 
     /**
      * Remove a pessoa (e a foto) da leitora. Não falha se ela não existir lá.

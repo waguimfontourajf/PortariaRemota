@@ -4,7 +4,9 @@ namespace App\Dispositivos\Drivers;
 
 use App\Dispositivos\Campo;
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\HorarioAcesso;
 use App\Models\Dispositivo;
 use Illuminate\Http\Client\Response;
 
@@ -13,6 +15,8 @@ use Illuminate\Http\Client\Response;
  *
  * Pessoa = UserInfo (employeeNo = código da pessoa no sistema).
  * Foto   = FDLib (biblioteca de faces), FPID = employeeNo.
+ * Horário = plano semanal + modelo (template) nº "número do horário + 1"
+ *           (o modelo 1 é o padrão da leitora: o dia todo).
  */
 class HikvisionFacial extends LeitoraFacialBase
 {
@@ -38,16 +42,25 @@ class HikvisionFacial extends LeitoraFacialBase
         ]);
     }
 
-    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg): Resultado
+    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg, RegrasDeAcesso $regras): Resultado
     {
-        return $this->executar(function () use ($dispositivo, $codigo, $nome, $fotoJpeg) {
+        return $this->executar(function () use ($dispositivo, $codigo, $nome, $fotoJpeg, $regras) {
+            if ($regras->horario) {
+                $this->configurarHorario($dispositivo, $regras->horario);
+            }
+
             $usuario = ['UserInfo' => [
                 'employeeNo' => (string) $codigo,
                 'name' => self::nomeCurto($nome),
                 'userType' => 'normal',
-                'Valid' => ['enable' => false, 'beginTime' => '2020-01-01T00:00:00', 'endTime' => '2037-12-31T23:59:59', 'timeType' => 'local'],
+                'Valid' => [
+                    'enable' => $regras->de !== null || $regras->ate !== null,
+                    'beginTime' => $regras->de?->format('Y-m-d\TH:i:s') ?? '2020-01-01T00:00:00',
+                    'endTime' => $regras->ate?->format('Y-m-d\TH:i:s') ?? '2037-12-31T23:59:59',
+                    'timeType' => 'local',
+                ],
                 'doorRight' => '1',
-                'RightPlan' => [['doorNo' => 1, 'planTemplateNo' => '1']],
+                'RightPlan' => [['doorNo' => 1, 'planTemplateNo' => (string) ($regras->horario ? $regras->horario->numero + 1 : 1)]],
             ]];
 
             // SetUp = cria ou altera (firmwares recentes). Senão, Record e, se já existir, Modify.
@@ -90,6 +103,38 @@ class HikvisionFacial extends LeitoraFacialBase
 
             return Resultado::ok('Pessoa removida da leitora.');
         });
+    }
+
+    private const SEMANA = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
+
+    /**
+     * Plano semanal (UserRightWeekPlanCfg) + modelo (UserRightPlanTemplate).
+     */
+    private function configurarHorario(Dispositivo $dispositivo, HorarioAcesso $horario): void
+    {
+        if ($this->horarioJaConfigurado($dispositivo, $horario)) {
+            return;
+        }
+
+        $numero = $horario->numero + 1;
+        $dias = [];
+
+        foreach (self::SEMANA as $dia => $nome) {
+            $dias[] = [
+                'week' => $nome, 'id' => 1, 'enable' => in_array($dia, $horario->dias, true),
+                'TimeSegment' => ['beginTime' => $horario->inicio, 'endTime' => $horario->fim],
+            ];
+        }
+
+        $this->exigirSucesso($this->json($dispositivo, 'PUT', "/ISAPI/AccessControl/UserRightWeekPlanCfg/{$numero}?format=json", [
+            'UserRightWeekPlanCfg' => ['enable' => true, 'WeekPlanCfg' => $dias],
+        ]), "gravar o horário \"{$horario->nome}\"");
+
+        $this->exigirSucesso($this->json($dispositivo, 'PUT', "/ISAPI/AccessControl/UserRightPlanTemplate/{$numero}?format=json", [
+            'UserRightPlanTemplate' => ['enable' => true, 'templateName' => self::nomeCurto($horario->nome), 'weekPlanNo' => $numero, 'holidayGroupNo' => ''],
+        ]), "gravar o modelo do horário \"{$horario->nome}\"");
+
+        $this->marcarHorarioConfigurado($dispositivo, $horario);
     }
 
     protected function abrirPorta(Dispositivo $dispositivo, int $porta): void

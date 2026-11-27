@@ -5,11 +5,14 @@ namespace App\Dispositivos\Drivers;
 use App\Dispositivos\Campo;
 use App\Dispositivos\Contratos\LeitoraFacial;
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\HorarioAcesso;
 use App\Models\Dispositivo;
 use Closure;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -158,6 +161,30 @@ abstract class LeitoraFacialBase extends DriverBase implements LeitoraFacial
         }
 
         return $resposta;
+    }
+
+    /**
+     * Horários já gravados nesta leitora (para não regravar a cada pessoa).
+     */
+    protected function horarioJaConfigurado(Dispositivo $dispositivo, HorarioAcesso $horario): bool
+    {
+        return (Cache::get($this->chaveDeHorarios($dispositivo), [])[$horario->numero] ?? null) === RegrasDeAcesso::assinaturaDoHorario($horario);
+    }
+
+    protected function marcarHorarioConfigurado(Dispositivo $dispositivo, HorarioAcesso $horario): void
+    {
+        $chave = $this->chaveDeHorarios($dispositivo);
+        Cache::forever($chave, [...Cache::get($chave, []), $horario->numero => RegrasDeAcesso::assinaturaDoHorario($horario)]);
+    }
+
+    public function esquecerConfiguracao(Dispositivo $dispositivo): void
+    {
+        Cache::forget($this->chaveDeHorarios($dispositivo));
+    }
+
+    private function chaveDeHorarios(Dispositivo $dispositivo): string
+    {
+        return 'leitora:'.$dispositivo->id.':horarios';
     }
 
     protected function numeroDaPorta(Dispositivo $dispositivo, int $canal): int

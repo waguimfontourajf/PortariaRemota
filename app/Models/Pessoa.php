@@ -34,11 +34,15 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $foto_path
  * @property Carbon|null $biometria_autorizada_em
  * @property int|null $biometria_autorizada_por
+ * @property int|null $horario_acesso_id
+ * @property Carbon|null $acesso_de
+ * @property Carbon|null $acesso_ate
+ * @property-read HorarioAcesso|null $horarioAcesso
  * @property bool $ativo
  * @property string|null $observacoes
  * @property-read User|null $usuario
  */
-#[Fillable(['nome', 'tipo', 'cpf', 'rg', 'data_nascimento', 'telefone', 'email', 'ativo', 'observacoes'])]
+#[Fillable(['nome', 'tipo', 'cpf', 'rg', 'data_nascimento', 'telefone', 'email', 'ativo', 'observacoes', 'horario_acesso_id', 'acesso_de', 'acesso_ate'])]
 class Pessoa extends Model
 {
     /** @use HasFactory<PessoaFactory> */
@@ -55,6 +59,8 @@ class Pessoa extends Model
             'data_nascimento' => 'date',
             'ativo' => 'boolean',
             'biometria_autorizada_em' => 'datetime',
+            'acesso_de' => 'date',
+            'acesso_ate' => 'date',
         ];
     }
 
@@ -74,6 +80,14 @@ class Pessoa extends Model
     public function liberadaParaLeitoraFacial(): bool
     {
         return $this->ativo && ! $this->trashed() && $this->foto_path !== null && $this->biometria_autorizada_em !== null;
+    }
+
+    /**
+     * @return BelongsTo<HorarioAcesso, $this>
+     */
+    public function horarioAcesso(): BelongsTo
+    {
+        return $this->belongsTo(HorarioAcesso::class);
     }
 
     /**

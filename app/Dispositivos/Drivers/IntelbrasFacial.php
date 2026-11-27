@@ -3,7 +3,9 @@
 namespace App\Dispositivos\Drivers;
 
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\HorarioAcesso;
 use App\Models\Dispositivo;
 use Illuminate\Http\Client\Response;
 
@@ -13,6 +15,8 @@ use Illuminate\Http\Client\Response;
  *
  * Pessoa = AccessUser (UserID = código da pessoa no sistema).
  * Foto   = AccessFace (PhotoData em base64, até 200 KB).
+ * Horário = AccessTimeSchedule[número do horário] (configManager); a pessoa
+ *           aponta para ele em TimeSections (255 = qualquer hora).
  */
 class IntelbrasFacial extends LeitoraFacialBase
 {
@@ -36,9 +40,13 @@ class IntelbrasFacial extends LeitoraFacialBase
         return static::camposComuns('admin');
     }
 
-    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg): Resultado
+    public function enviarPessoa(Dispositivo $dispositivo, int $codigo, string $nome, string $fotoJpeg, RegrasDeAcesso $regras): Resultado
     {
-        return $this->executar(function () use ($dispositivo, $codigo, $nome, $fotoJpeg) {
+        return $this->executar(function () use ($dispositivo, $codigo, $nome, $fotoJpeg, $regras) {
+            if ($regras->horario) {
+                $this->configurarHorario($dispositivo, $regras->horario);
+            }
+
             // insertMulti cria ou atualiza a pessoa. Authority 2 = usuário comum;
             // Doors [0] = porta 1; TimeSections [255] = sem restrição de horário.
             $this->exigirOk($this->post($dispositivo, '/cgi-bin/AccessUser.cgi?action=insertMulti', ['UserList' => [[
@@ -47,9 +55,9 @@ class IntelbrasFacial extends LeitoraFacialBase
                 'UserType' => 0,
                 'Authority' => 2,
                 'Doors' => [0],
-                'TimeSections' => [255],
-                'ValidFrom' => '2020-01-01 00:00:00',
-                'ValidTo' => '2037-12-31 23:59:59',
+                'TimeSections' => [$regras->horario ? $regras->horario->numero : 255],
+                'ValidFrom' => $regras->de?->format('Y-m-d H:i:s') ?? '2020-01-01 00:00:00',
+                'ValidTo' => $regras->ate?->format('Y-m-d H:i:s') ?? '2037-12-31 23:59:59',
             ]]]), 'cadastrar a pessoa');
 
             $face = ['FaceList' => [['UserID' => (string) $codigo, 'PhotoData' => [base64_encode($fotoJpeg)]]]];
@@ -78,6 +86,31 @@ class IntelbrasFacial extends LeitoraFacialBase
 
             return Resultado::ok('Pessoa removida da leitora.');
         });
+    }
+
+    /**
+     * Grava o horário na leitora: AccessTimeSchedule[n].TimeSchedule[dia][0] =
+     * "1 HH:MM:SS-HH:MM:SS" (dia 0 = domingo; o 7 é o de feriados).
+     */
+    private function configurarHorario(Dispositivo $dispositivo, HorarioAcesso $horario): void
+    {
+        if ($this->horarioJaConfigurado($dispositivo, $horario)) {
+            return;
+        }
+
+        $n = $horario->numero;
+        $parametros = [
+            "AccessTimeSchedule[{$n}].Name=".rawurlencode(self::nomeCurto($horario->nome, 60)),
+            "AccessTimeSchedule[{$n}].Enable=true",
+        ];
+
+        for ($dia = 0; $dia <= 7; $dia++) {
+            $faixa = in_array($dia, $horario->dias, true) ? "1 {$horario->inicio}-{$horario->fim}" : '0 00:00:00-00:00:00';
+            $parametros[] = "AccessTimeSchedule[{$n}].TimeSchedule[{$dia}][0]=".rawurlencode($faixa);
+        }
+
+        $this->exigirOk($this->get($dispositivo, '/cgi-bin/configManager.cgi?action=setConfig&'.implode('&', $parametros)), "gravar o horário \"{$horario->nome}\"");
+        $this->marcarHorarioConfigurado($dispositivo, $horario);
     }
 
     protected function abrirPorta(Dispositivo $dispositivo, int $porta): void

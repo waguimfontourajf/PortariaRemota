@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Dispositivos\Contratos\LeitoraFacial;
 use App\Dispositivos\RegistroDeDrivers;
+use App\Dispositivos\RegrasDeAcesso;
 use App\Models\Condominio;
 use App\Models\Dispositivo;
 use App\Models\Pessoa;
@@ -127,8 +128,13 @@ class SincronizacaoFacial
         @set_time_limit(0);
         $totais = ['enviadas' => 0, 'removidas' => 0, 'sem_mudanca' => 0, 'erros' => []];
 
+        if ($forcar) {
+            // A leitora pode ter sido resetada: regrava também os horários.
+            $leitora->driverDeRele()->esquecerConfiguracao($leitora);
+        }
+
         $pessoas = Pessoa::withTrashed()->doCondominio($leitora->condominio_id)
-            ->with(['unidades.bloco', 'leitoras' => fn ($q) => $q->whereKey($leitora->id)])
+            ->with(['unidades.bloco', 'horarioAcesso', 'leitoras' => fn ($q) => $q->whereKey($leitora->id)])
             ->orderBy('nome')->get();
 
         foreach ($pessoas as $pessoa) {
@@ -188,13 +194,14 @@ class SincronizacaoFacial
             return ['sucesso' => false, 'mensagem' => 'Arquivo da foto não encontrado no servidor.', 'acao' => 'enviadas'];
         }
 
-        $assinatura = hash('sha256', $pessoa->nome."\0".$foto);
+        $regras = RegrasDeAcesso::daPessoa($pessoa);
+        $assinatura = hash('sha256', $pessoa->nome."\0".$regras->assinatura()."\0".$foto);
 
         if (! $forcar && $registro && $registro->assinatura === $assinatura && $registro->erro === null) {
             return ['sucesso' => true, 'mensagem' => 'Já está atualizada.', 'acao' => 'sem_mudanca'];
         }
 
-        $resultado = $driver->enviarPessoa($leitora, $pessoa->id, $pessoa->nome, $foto);
+        $resultado = $driver->enviarPessoa($leitora, $pessoa->id, $pessoa->nome, $foto, $regras);
 
         DB::table('dispositivo_pessoa')->updateOrInsert(
             ['dispositivo_id' => $leitora->id, 'pessoa_id' => $pessoa->id],

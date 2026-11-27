@@ -88,6 +88,14 @@ class Condominio extends Model
     }
 
     /**
+     * @return HasMany<HorarioAcesso, $this>
+     */
+    public function horariosAcesso(): HasMany
+    {
+        return $this->hasMany(HorarioAcesso::class);
+    }
+
+    /**
      * @return HasMany<Unidade, $this>
      */
     public function unidades(): HasMany
