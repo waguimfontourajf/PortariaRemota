@@ -10,7 +10,7 @@ REM  O que faz:
 REM   1. Salva o PATH atual em implantacao\ambiente.local.bat, para
 REM      a atualizacao encontrar php/composer/node/git.
 REM   2. Cria a tarefa agendada do Windows "PortariaRemota\Atualizar",
-REM      que roda implantacao\atualizar.bat com o SEU usuario.
+REM      que roda implantacao\executar-atualizacao.bat com o SEU usuario.
 REM      O painel apenas pede ao Windows para executar essa tarefa.
 REM ==========================================================
 setlocal
@@ -28,8 +28,10 @@ echo PATH salvo em implantacao\ambiente.local.bat
 if not exist "storage\app\atualizacao" mkdir "storage\app\atualizacao"
 git log -1 --format="%%h|%%cI|%%s" > "storage\app\atualizacao\versao.txt"
 
-schtasks /create /f /tn "PortariaRemota\Atualizar" /sc once /sd 01/01/2000 /st 00:00 /it /rl highest ^
-  /tr "cmd /c \"\"%PROJETO%\implantacao\atualizar.bat\" > \"%PROJETO%\storage\logs\atualizacao.log\" 2>&1\""
+REM O registro (log) e feito pelo executar-atualizacao.bat: assim o /tr
+REM nao tem ">" (o cmd interpretaria como redirecionamento DESTE script).
+schtasks /create /f /tn "PortariaRemota\Atualizar" /sc once /sd 01/01/2000 /st 00:00 /it /rl highest /tr "\"%PROJETO%\implantacao\executar-atualizacao.bat\""
+schtasks /query /tn "PortariaRemota\Atualizar" >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ERRO ao criar a tarefa. Abra o Terminal do Laragon como ADMINISTRADOR e rode de novo.

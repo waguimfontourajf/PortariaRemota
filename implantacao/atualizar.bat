@@ -9,11 +9,14 @@ REM  Ou pelo painel: Administracao > Atualizar sistema
 REM  (requer implantacao\instalar-atualizacao-pelo-painel.bat)
 REM ==========================================================
 setlocal
-cd /d "%~dp0.."
+REM Pelo painel, o executar-atualizacao.bat roda uma COPIA deste arquivo
+REM (o git pull pode alterar o original no meio) e informa a pasta.
+if not defined PORTARIA_DIR set "PORTARIA_DIR=%~dp0.."
+cd /d "%PORTARIA_DIR%"
 
 REM PATH salvo pelo instalador (php, composer, node e git do Laragon),
 REM usado quando a atualizacao e disparada pelo painel.
-if exist "%~dp0ambiente.local.bat" call "%~dp0ambiente.local.bat"
+if exist "implantacao\ambiente.local.bat" call "implantacao\ambiente.local.bat"
 
 set "ESTADO_DIR=storage\app\atualizacao"
 if not exist "%ESTADO_DIR%" mkdir "%ESTADO_DIR%"
