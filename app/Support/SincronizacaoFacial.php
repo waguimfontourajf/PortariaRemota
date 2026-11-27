@@ -13,9 +13,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Mantém as leitoras faciais iguais ao cadastro de pessoas do sistema.
  *
- * Regra: vai para a leitora quem está ativo, tem foto e tem o consentimento
- * de biometria (LGPD) registrado. Quem deixa de cumprir isso (inativado,
- * excluído, sem foto, consentimento retirado) é removido da leitora.
+ * Regra: vai para a leitora quem está ativo, tem foto, tem o consentimento
+ * de biometria (LGPD) registrado e faz parte do público da leitora (tipo de
+ * pessoa e blocos, configurados no cadastro da leitora). Quem deixa de
+ * cumprir isso é removido da leitora.
  *
  * Roda na hora (sem fila), porque o servidor não tem processo de fila.
  */
@@ -43,6 +44,52 @@ class SincronizacaoFacial
 
         return Dispositivo::query()->doCondominio($condominio)
             ->where('ativo', true)->whereIn('driver', $chaves)->orderBy('nome')->get();
+    }
+
+    /**
+     * A pessoa deve estar nesta leitora?
+     */
+    public function deveEstar(Dispositivo $leitora, Pessoa $pessoa): bool
+    {
+        return $pessoa->liberadaParaLeitoraFacial() && $this->fazParteDoPublico($leitora, $pessoa);
+    }
+
+    /**
+     * Público configurado na leitora: tipo de pessoa e (opcional) blocos.
+     */
+    public function fazParteDoPublico(Dispositivo $leitora, Pessoa $pessoa): bool
+    {
+        $publico = (string) $leitora->opcao('publico', 'todos');
+        $tipo = $pessoa->tipo->value;
+
+        if ($publico === 'moradores' && $tipo !== 'morador') {
+            return false;
+        }
+
+        if ($publico === 'funcionarios' && $tipo === 'morador') {
+            return false;
+        }
+
+        $blocos = collect(explode(',', (string) $leitora->opcao('blocos', '')))
+            ->map(fn (string $b) => mb_strtolower(trim($b)))->filter()->values();
+
+        // Funcionários do condomínio não pertencem a um bloco: entram sempre.
+        if ($blocos->isEmpty() || $tipo === 'funcionario') {
+            return true;
+        }
+
+        return $pessoa->unidades->contains(fn ($unidade) => $blocos->contains(mb_strtolower(trim((string) $unidade->bloco?->nome))));
+    }
+
+    /**
+     * Quantas pessoas do condomínio devem estar nesta leitora.
+     */
+    public function totalParaALeitora(Dispositivo $leitora): int
+    {
+        return Pessoa::query()->doCondominio($leitora->condominio_id)
+            ->where('ativo', true)->whereNotNull('foto_path')->whereNotNull('biometria_autorizada_em')
+            ->with('unidades.bloco')->get()
+            ->filter(fn (Pessoa $p) => $this->fazParteDoPublico($leitora, $p))->count();
     }
 
     public function ehLeitora(Dispositivo $dispositivo): bool
@@ -81,13 +128,13 @@ class SincronizacaoFacial
         $totais = ['enviadas' => 0, 'removidas' => 0, 'sem_mudanca' => 0, 'erros' => []];
 
         $pessoas = Pessoa::withTrashed()->doCondominio($leitora->condominio_id)
-            ->with(['leitoras' => fn ($q) => $q->whereKey($leitora->id)])
+            ->with(['unidades.bloco', 'leitoras' => fn ($q) => $q->whereKey($leitora->id)])
             ->orderBy('nome')->get();
 
         foreach ($pessoas as $pessoa) {
             $estava = $pessoa->leitoras->isNotEmpty();
 
-            if (! $pessoa->liberadaParaLeitoraFacial() && ! $estava) {
+            if (! $this->deveEstar($leitora, $pessoa) && ! $estava) {
                 continue;
             }
 
@@ -115,9 +162,11 @@ class SincronizacaoFacial
         $driver = $leitora->driverDeRele();
         $registro = DB::table('dispositivo_pessoa')->where('dispositivo_id', $leitora->id)->where('pessoa_id', $pessoa->id)->first();
 
-        if (! $pessoa->liberadaParaLeitoraFacial()) {
+        if (! $this->deveEstar($leitora, $pessoa)) {
             if (! $registro) {
-                return ['sucesso' => true, 'mensagem' => 'Não está na leitora (sem foto ou sem consentimento).', 'acao' => 'sem_mudanca'];
+                $motivo = $pessoa->liberadaParaLeitoraFacial() ? 'fora do público desta leitora' : 'sem foto, sem autorização ou inativa';
+
+                return ['sucesso' => true, 'mensagem' => "Não vai para esta leitora ({$motivo}).", 'acao' => 'sem_mudanca'];
             }
 
             $resultado = $driver->removerPessoa($leitora, $pessoa->id);

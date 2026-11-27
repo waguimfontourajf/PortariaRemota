@@ -5,7 +5,6 @@ use App\Dispositivos\RegistroDeDrivers;
 use App\Enums\Permissao;
 use App\Livewire\Concerns\OperaNoCondominioAtual;
 use App\Models\Dispositivo;
-use App\Models\Pessoa;
 use App\Support\SincronizacaoFacial;
 use Illuminate\Support\Facades\DB;
 use Flux\Flux;
@@ -152,8 +151,8 @@ new class extends Component {
     #[Computed]
     public function resumoDaLeitora(): array
     {
-        $liberadas = Pessoa::query()->doCondominio($this->condominio())->where('ativo', true)
-            ->whereNotNull('foto_path')->whereNotNull('biometria_autorizada_em')->count();
+        $dispositivo = $this->condominio()->dispositivos()->findOrFail($this->dispositivoId);
+        $liberadas = app(SincronizacaoFacial::class)->totalParaALeitora($dispositivo);
         $registros = DB::table('dispositivo_pessoa')->where('dispositivo_id', $this->dispositivoId);
 
         return [
@@ -390,12 +389,12 @@ new class extends Component {
         @if ($this->ehLeitoraSalva)
             <flux:fieldset>
                 <flux:legend>{{ __('Pessoas na leitora facial') }}</flux:legend>
-                <flux:description class="mb-4">{{ __('As pessoas são enviadas sozinhas ao salvar o cadastro delas. Use os botões para a primeira carga, depois de trocar a leitora ou se ela ficou desligada.') }}</flux:description>
+                <flux:description class="mb-4">{{ __('As pessoas são enviadas sozinhas ao salvar o cadastro delas. Use os botões para a primeira carga, depois de mudar "Quem vai para esta leitora", de trocar a leitora ou se ela ficou desligada.') }}</flux:description>
 
                 <div class="mb-4 grid grid-cols-3 gap-3 text-center">
                     <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
                         <div class="text-2xl font-semibold">{{ $this->resumoDaLeitora['liberadas'] }}</div>
-                        <div class="text-xs text-zinc-500">{{ __('com foto e autorização') }}</div>
+                        <div class="text-xs text-zinc-500">{{ __('devem estar na leitora') }}</div>
                     </div>
                     <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
                         <div class="text-2xl font-semibold text-green-600">{{ $this->resumoDaLeitora['na_leitora'] }}</div>

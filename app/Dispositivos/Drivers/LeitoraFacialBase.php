@@ -51,6 +51,12 @@ abstract class LeitoraFacialBase extends DriverBase implements LeitoraFacial
             new Campo('usuario', 'Usuário', obrigatorio: true, padrao: $usuarioPadrao, placeholder: $usuarioPadrao),
             new Campo('senha', 'Senha', 'senha', obrigatorio: true, ajuda: 'A mesma usada para entrar na página da leitora pelo navegador.'),
             ...$especificos,
+            new Campo('publico', 'Quem vai para esta leitora', 'selecao', obrigatorio: true, padrao: 'todos', opcoes: [
+                'todos' => 'Todas as pessoas liberadas',
+                'moradores' => 'Só moradores',
+                'funcionarios' => 'Só funcionários e prestadores',
+            ], ajuda: 'Liberadas = ativas, com foto e com autorização de biometria.'),
+            new Campo('blocos', 'Só destes blocos (opcional)', placeholder: 'Ex.: Bloco A, Bloco B', ajuda: 'Nomes dos blocos separados por vírgula, como no cadastro. Funcionários do condomínio entram sempre; moradores e prestadores, só se tiverem unidade nesses blocos.', regras: ['max:255']),
             new Campo('https', 'Usar HTTPS', 'booleano', padrao: false, ajuda: 'Só se a leitora estiver configurada para HTTPS.'),
             new Campo('timeout', 'Tempo limite (segundos)', 'numero', padrao: 8, regras: ['min:1', 'max:60']),
         ];

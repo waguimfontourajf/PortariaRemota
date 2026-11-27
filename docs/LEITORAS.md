@@ -22,7 +22,12 @@ Vai para a leitora a pessoa que tem **as três coisas**:
 2. **foto do rosto**;
 3. **autorização de uso da biometria** marcada (LGPD).
 
-Quem perde uma delas (foi inativado, excluído, teve a foto removida ou retirou a autorização) é **removido** da leitora.
+Além disso, cada leitora tem o seu **público** (no cadastro da leitora):
+
+- **Quem vai para esta leitora:** todas as pessoas liberadas, só moradores, ou só funcionários e prestadores;
+- **Só destes blocos (opcional):** ex. `Bloco A, Bloco B`. Moradores e prestadores entram só se tiverem unidade nesses blocos; funcionários do condomínio entram sempre.
+
+Quem perde uma das condições (foi inativado, excluído, teve a foto removida, retirou a autorização ou saiu do público da leitora) é **removido** da leitora. Depois de mudar o público, clique em **Sincronizar agora** na tela da leitora.
 
 O código da pessoa na leitora é o **ID dela no sistema**. Nome e foto são atualizados sempre que o cadastro é salvo.
 
@@ -90,4 +95,3 @@ php artisan portaria:leitoras-sincronizar "Leitora portaria" --todas
 
 - **Horários e validade** por pessoa (ex.: diarista só de segunda a sexta): hoje todos os liberados têm acesso a qualquer hora.
 - **Histórico vindo da leitora** (quem passou pelo rosto): os acessos por reconhecimento facial ficam só na leitora por enquanto.
-- Escolher **quais pessoas** vão para **qual leitora** (hoje vão todas as liberadas do condomínio).

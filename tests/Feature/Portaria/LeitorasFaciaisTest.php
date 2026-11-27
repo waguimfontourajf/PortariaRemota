@@ -3,8 +3,10 @@
 namespace Tests\Feature\Portaria;
 
 use App\Enums\Perfil;
+use App\Models\Bloco;
 use App\Models\Dispositivo;
 use App\Models\Pessoa;
+use App\Models\Unidade;
 use App\Support\FotoDePessoa;
 use App\Support\SincronizacaoFacial;
 use Illuminate\Http\Client\Request;
@@ -243,5 +245,33 @@ class LeitorasFaciaisTest extends CadastrosTestCase
 
         $this->assertTrue($resultado->sucesso, $resultado->mensagem);
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'accessControl.cgi?action=openDoor&channel=1'));
+    }
+
+    public function test_publico_da_leitora_por_tipo_e_bloco(): void
+    {
+        Http::fake(['*' => Http::response('OK')]);
+        $leitora = $this->leitora('intelbras_facial', ['publico' => 'todos', 'blocos' => 'Bloco A']);
+        $blocoA = Bloco::factory()->for($this->condominio)->create(['nome' => 'Bloco A']);
+        $blocoB = Bloco::factory()->for($this->condominio)->create(['nome' => 'Bloco B']);
+
+        $moradorA = $this->pessoaLiberada(['nome' => 'Morador A']);
+        $moradorA->unidades()->attach(Unidade::factory()->for($this->condominio)->create(['bloco_id' => $blocoA->id]));
+        $moradorB = $this->pessoaLiberada(['nome' => 'Morador B']);
+        $moradorB->unidades()->attach(Unidade::factory()->for($this->condominio)->create(['bloco_id' => $blocoB->id]));
+        $zelador = $this->pessoaLiberada(['nome' => 'Zelador', 'tipo' => 'funcionario']);
+
+        $servico = app(SincronizacaoFacial::class);
+        $this->assertTrue($servico->deveEstar($leitora, $moradorA->load('unidades.bloco')));
+        $this->assertFalse($servico->deveEstar($leitora, $moradorB->load('unidades.bloco')));
+        $this->assertTrue($servico->deveEstar($leitora, $zelador), 'funcionário do condomínio entra sempre');
+
+        $totais = $servico->sincronizarLeitora($leitora);
+        $this->assertSame(2, $totais['enviadas']);
+
+        // Mudou o público: o zelador sai na próxima sincronização.
+        $leitora->update(['config' => [...$leitora->config, 'publico' => 'moradores']]);
+        $totais = $servico->sincronizarLeitora($leitora->fresh());
+        $this->assertSame(1, $totais['removidas']);
+        $this->assertDatabaseMissing('dispositivo_pessoa', ['dispositivo_id' => $leitora->id, 'pessoa_id' => $zelador->id]);
     }
 }
