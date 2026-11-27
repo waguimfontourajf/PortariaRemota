@@ -28,13 +28,17 @@ echo PATH salvo em implantacao\ambiente.local.bat
 if not exist "storage\app\atualizacao" mkdir "storage\app\atualizacao"
 git log -1 --format="%%h|%%cI|%%s" > "storage\app\atualizacao\versao.txt"
 
+REM Sem "/rl highest": a atualizacao nao precisa de administrador, e assim
+REM o Apache (mesmo usuario, sem elevacao) consegue consultar e iniciar a tarefa.
+REM O aviso "/ST e anterior a hora atual" e normal: a tarefa so roda pelo painel.
 REM O registro (log) e feito pelo executar-atualizacao.bat: assim o /tr
 REM nao tem ">" (o cmd interpretaria como redirecionamento DESTE script).
-schtasks /create /f /tn "PortariaRemota\Atualizar" /sc once /sd 01/01/2000 /st 00:00 /it /rl highest /tr "\"%PROJETO%\implantacao\executar-atualizacao.bat\""
+schtasks /create /f /tn "PortariaRemota\Atualizar" /sc once /sd 01/01/2000 /st 00:00 /it /tr "\"%PROJETO%\implantacao\executar-atualizacao.bat\""
 schtasks /query /tn "PortariaRemota\Atualizar" >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo ERRO ao criar a tarefa. Abra o Terminal do Laragon como ADMINISTRADOR e rode de novo.
+    echo ERRO ao criar a tarefa. Rode pelo Terminal do Laragon NORMAL (sem "Executar como administrador"),
+    echo com o mesmo usuario que fica logado no Windows do servidor.
     exit /b 1
 )
 

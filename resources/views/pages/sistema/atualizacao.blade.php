@@ -99,7 +99,7 @@ new #[Title('Atualizar sistema')] class extends Component {
         @elseif (! $this->tarefaInstalada)
             <flux:callout variant="warning" icon="wrench-screwdriver" :heading="__('Falta uma configuração única no servidor')">
                 <flux:callout.text>
-                    {{ __('No Terminal do Laragon (como administrador), dentro da pasta do projeto, rode:') }}
+                    {{ __('No Terminal do Laragon (normal, sem administrador), dentro da pasta do projeto, rode:') }}
                     <code class="mt-2 block rounded bg-zinc-100 p-2 font-mono text-xs dark:bg-zinc-800">implantacao\instalar-atualizacao-pelo-painel.bat</code>
                 </flux:callout.text>
             </flux:callout>

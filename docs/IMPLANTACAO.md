@@ -125,7 +125,7 @@ Quem acessar recebe um código por e-mail antes de ver a tela de login. Quando o
 
 ### Pelo painel (recomendado)
 
-**Configuração única.** Abra o Terminal do Laragon **como administrador** e, dentro da pasta do projeto, rode:
+**Configuração única.** Abra o Terminal do Laragon **normal** (não precisa de administrador), com o usuário que fica logado no Windows do servidor, e, dentro da pasta do projeto, rode:
 
 ```bash
 implantacao\instalar-atualizacao-pelo-painel.bat
@@ -169,5 +169,5 @@ Se o Windows perguntar sobre o firewall no `tuya-procurar`, **permita** o PHP em
 | Tela sem estilo | Rodar `npm run build` |
 | "Bad gateway" no Cloudflare | Apache parado, ou URL do túnel diferente de `localhost:80` |
 | Mudou o `.env` e nada aconteceu | Rodar `php artisan optimize` (o `.env` fica em cache) |
-| Botão "Atualizar agora" não faz nada | Rodar de novo `implantacao\instalar-atualizacao-pelo-painel.bat` como administrador; ver `storage\logs\atualizacao.log` |
+| Botão "Atualizar agora" não faz nada | Rodar de novo `implantacao\instalar-atualizacao-pelo-painel.bat` (terminal normal, mesmo usuário); ver `storage\logs\atualizacao.log` |
 | Sistema ficou em "manutenção" | No terminal: `php artisan up` |
