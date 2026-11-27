@@ -1,6 +1,7 @@
 <?php
 
 use App\Acoes\AcionarPontoDeAcesso;
+use App\Enums\AcaoEvento;
 use App\Enums\OrigemEvento;
 use App\Enums\Permissao;
 use App\Enums\ResultadoEvento;
@@ -19,6 +20,8 @@ new #[Title('Abrir')] class extends Component {
     /** @var array<int, array{sucesso: bool, texto: string}> */
     public array $resultados = [];
 
+    public bool $estadosConsultados = false;
+
     public function mount(): void
     {
         $this->exigirPermissao(Permissao::AcessosAbrir);
@@ -30,7 +33,7 @@ new #[Title('Abrir')] class extends Component {
         $usuario = auth()->user();
 
         return $this->condominio()->pontosAcesso()
-            ->with(['condominio', 'dispositivo:id,online,ativo'])
+            ->with(['condominio', 'dispositivo:id,online,ativo,driver'])
             ->where('ativo', true)
             ->orderBy('ordem')->orderBy('nome')
             ->get()
@@ -50,26 +53,61 @@ new #[Title('Abrir')] class extends Component {
             ->keyBy('ponto_acesso_id');
     }
 
-    public function abrir(string $uuid, AcionarPontoDeAcesso $acionar): void
+    /**
+     * @param  bool|null  $ligar  Só para pontos "liga / desliga".
+     */
+    public function abrir(string $uuid, ?bool $ligar = null): void
     {
         $this->exigirPermissao(Permissao::AcessosAbrir);
         $ponto = $this->condominio()->pontosAcesso()->where('uuid', $uuid)->firstOrFail();
 
-        $evento = $acionar($ponto, auth()->user(), OrigemEvento::Web, request()->ip());
+        $evento = app(AcionarPontoDeAcesso::class)($ponto, auth()->user(), OrigemEvento::Web, request()->ip(), $ponto->ehLigaDesliga() ? $ligar : null);
         $sucesso = $evento->resultado === ResultadoEvento::Sucesso;
+        $hora = now()->timezone($this->condominio()->fuso_horario)->format('H:i:s');
 
-        $this->resultados[$ponto->id] = [
-            'sucesso' => $sucesso,
-            'texto' => $sucesso ? __('Aberto às :h', ['h' => now()->timezone($this->condominio()->fuso_horario)->format('H:i:s')]) : $evento->detalhe,
-        ];
+        $texto = match (true) {
+            ! $sucesso => $evento->detalhe,
+            $evento->acao === AcaoEvento::Ligar => __('Ligado às :h', ['h' => $hora]),
+            $evento->acao === AcaoEvento::Desligar => __('Desligado às :h', ['h' => $hora]),
+            default => __('Aberto às :h', ['h' => $hora]),
+        };
+
+        $this->resultados[$ponto->id] = ['sucesso' => $sucesso, 'texto' => $texto];
 
         Flux::toast(
             variant: $sucesso ? 'success' : 'danger',
             heading: $ponto->nome,
-            text: $sucesso ? __('Comando de abertura enviado.') : $evento->detalhe,
+            text: $sucesso ? ($ponto->ehLigaDesliga() ? $texto.'.' : __('Comando de abertura enviado.')) : $evento->detalhe,
         );
 
-        unset($this->ultimos);
+        unset($this->pontos, $this->ultimos);
+    }
+
+    /**
+     * Consulta o estado real dos pontos "liga / desliga" (chamado logo após a
+     * tela carregar, para não atrasar a abertura da página).
+     */
+    public function atualizarEstados(): void
+    {
+        $this->exigirPermissao(Permissao::AcessosAbrir);
+
+        foreach ($this->pontos->filter->ehLigaDesliga() as $ponto) {
+            $dispositivo = $ponto->dispositivo()->first();
+
+            if (! $dispositivo || ! $dispositivo->ativo) {
+                continue;
+            }
+
+            $resultado = $dispositivo->driverDeRele()->estado($dispositivo, $ponto->canal);
+            $dispositivo->registrarContato($resultado->sucesso, $resultado->sucesso ? null : $resultado->mensagem);
+
+            if ($resultado->sucesso && $resultado->ligado !== null) {
+                $ponto->registrarEstado($resultado->ligado);
+            }
+        }
+
+        $this->estadosConsultados = true;
+        unset($this->pontos);
     }
 }; ?>
 
@@ -81,7 +119,7 @@ new #[Title('Abrir')] class extends Component {
             <flux:callout.text>{{ __('Nenhum portão ou porta disponível para você neste condomínio.') }}</flux:callout.text>
         </flux:callout>
     @else
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" @if ($this->pontos->contains->ehLigaDesliga()) wire:init="atualizarEstados" @endif>
             @foreach ($this->pontos as $ponto)
                 @php($ultimo = $this->ultimos->get($ponto->id))
                 @php($resultado = $resultados[$ponto->id] ?? null)
@@ -101,24 +139,62 @@ new #[Title('Abrir')] class extends Component {
                         @endif
                     </div>
 
-                    <flux:button
-                        variant="primary"
-                        class="h-14! w-full text-base!"
-                        icon="lock-open"
-                        wire:click="abrir('{{ $ponto->uuid }}')"
-                        wire:loading.attr="disabled"
-                        wire:target="abrir('{{ $ponto->uuid }}')"
-                        data-test="abrir-{{ $ponto->uuid }}"
-                    >
-                        <span wire:loading.remove wire:target="abrir('{{ $ponto->uuid }}')">{{ __('ABRIR') }}</span>
-                        <span wire:loading wire:target="abrir('{{ $ponto->uuid }}')">{{ __('Abrindo…') }}</span>
-                    </flux:button>
+                    @if ($ponto->ehLigaDesliga())
+                        @php($ligado = $ponto->ligado)
+                        <div class="flex items-center gap-2 text-sm">
+                            <span @class([
+                                'inline-block size-2.5 rounded-full',
+                                'bg-amber-400 shadow-[0_0_8px] shadow-amber-400' => $ligado === true,
+                                'bg-zinc-300 dark:bg-zinc-600' => $ligado === false,
+                                'bg-zinc-200 dark:bg-zinc-700 animate-pulse' => $ligado === null,
+                            ])></span>
+                            <span class="text-zinc-600 dark:text-zinc-300">
+                                @if ($ligado === null)
+                                    {{ $estadosConsultados ? __('Estado desconhecido') : __('Consultando…') }}
+                                @else
+                                    {{ $ligado ? __('Ligado') : __('Desligado') }}
+                                @endif
+                            </span>
+                        </div>
+
+                        <flux:button
+                            :variant="$ligado ? 'filled' : 'primary'"
+                            class="h-14! w-full text-base!"
+                            :icon="$ligado ? 'power' : 'bolt'"
+                            wire:click="abrir('{{ $ponto->uuid }}', {{ $ligado === null ? 'null' : ($ligado ? 'false' : 'true') }})"
+                            wire:loading.attr="disabled"
+                            wire:target="abrir"
+                            data-test="abrir-{{ $ponto->uuid }}"
+                        >
+                            <span wire:loading.remove wire:target="abrir">
+                                @if ($ligado === null)
+                                    {{ __('LIGAR / DESLIGAR') }}
+                                @else
+                                    {{ $ligado ? __('DESLIGAR') : __('LIGAR') }}
+                                @endif
+                            </span>
+                            <span wire:loading wire:target="abrir">{{ __('Enviando…') }}</span>
+                        </flux:button>
+                    @else
+                        <flux:button
+                            variant="primary"
+                            class="h-14! w-full text-base!"
+                            icon="lock-open"
+                            wire:click="abrir('{{ $ponto->uuid }}')"
+                            wire:loading.attr="disabled"
+                            wire:target="abrir('{{ $ponto->uuid }}')"
+                            data-test="abrir-{{ $ponto->uuid }}"
+                        >
+                            <span wire:loading.remove wire:target="abrir('{{ $ponto->uuid }}')">{{ __('ABRIR') }}</span>
+                            <span wire:loading wire:target="abrir('{{ $ponto->uuid }}')">{{ __('Abrindo…') }}</span>
+                        </flux:button>
+                    @endif
 
                     <flux:text class="min-h-5 text-xs">
                         @if ($resultado)
                             <span @class(['text-green-600 dark:text-green-400' => $resultado['sucesso'], 'text-red-600 dark:text-red-400' => ! $resultado['sucesso']])>{{ $resultado['texto'] }}</span>
                         @elseif ($ultimo)
-                            {{ __('Última abertura: :data por :quem', [
+                            {{ __($ponto->ehLigaDesliga() ? 'Última ação: :data por :quem' : 'Última abertura: :data por :quem', [
                                 'data' => $ultimo->created_at->timezone($this->condominio()->fuso_horario)->format('d/m H:i'),
                                 'quem' => $ultimo->usuario_nome ?? __('sistema'),
                             ]) }}

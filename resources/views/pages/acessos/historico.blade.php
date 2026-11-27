@@ -99,6 +99,7 @@ new #[Title('Histórico')] class extends Component {
         <flux:table.columns>
             <flux:table.column>{{ __('Data e hora') }}</flux:table.column>
             <flux:table.column>{{ __('Ponto') }}</flux:table.column>
+            <flux:table.column class="max-sm:hidden">{{ __('Ação') }}</flux:table.column>
             <flux:table.column class="max-md:hidden">{{ __('Quem') }}</flux:table.column>
             <flux:table.column class="max-lg:hidden">{{ __('Origem') }}</flux:table.column>
             <flux:table.column>{{ __('Resultado') }}</flux:table.column>
@@ -108,6 +109,7 @@ new #[Title('Histórico')] class extends Component {
                 <flux:table.row :key="$e->id">
                     <flux:table.cell class="whitespace-nowrap">{{ $e->created_at->timezone($this->condominio()->fuso_horario)->format('d/m/Y H:i:s') }}</flux:table.cell>
                     <flux:table.cell variant="strong">{{ $e->ponto_nome ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="max-sm:hidden">{{ $e->acao->label() }}</flux:table.cell>
                     <flux:table.cell class="max-md:hidden">{{ $e->usuario_nome ?? __('Sistema') }}</flux:table.cell>
                     <flux:table.cell class="max-lg:hidden">{{ $e->origem->label() }}</flux:table.cell>
                     <flux:table.cell>
@@ -118,7 +120,7 @@ new #[Title('Histórico')] class extends Component {
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="5" class="py-8 text-center">{{ __('Nenhum registro encontrado.') }}</flux:table.cell>
+                    <flux:table.cell colspan="6" class="py-8 text-center">{{ __('Nenhum registro encontrado.') }}</flux:table.cell>
                 </flux:table.row>
             @endforelse
         </flux:table.rows>

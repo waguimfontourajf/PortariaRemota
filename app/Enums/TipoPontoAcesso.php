@@ -9,6 +9,7 @@ enum TipoPontoAcesso: string
     case Porta = 'porta';
     case Eclusa = 'eclusa';
     case Cancela = 'cancela';
+    case Iluminacao = 'iluminacao';
     case Outro = 'outro';
 
     public function label(): string
@@ -19,6 +20,7 @@ enum TipoPontoAcesso: string
             self::Porta => 'Porta',
             self::Eclusa => 'Eclusa',
             self::Cancela => 'Cancela',
+            self::Iluminacao => 'Iluminação',
             self::Outro => 'Outro',
         };
     }
@@ -31,6 +33,7 @@ enum TipoPontoAcesso: string
             self::Porta => 'key',
             self::Eclusa => 'arrows-right-left',
             self::Cancela => 'minus',
+            self::Iluminacao => 'light-bulb',
             self::Outro => 'bolt',
         };
     }

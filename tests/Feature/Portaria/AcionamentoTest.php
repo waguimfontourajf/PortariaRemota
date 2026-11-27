@@ -234,4 +234,42 @@ class AcionamentoTest extends CadastrosTestCase
         $this->assertFalse($resultado->sucesso);
         $this->assertStringContainsString('NÃO conseguiu desligar', $resultado->mensagem);
     }
+
+    public function test_ponto_liga_desliga_alterna_e_guarda_o_estado(): void
+    {
+        $ponto = $this->ponto(['nome' => 'Luz Cozinha', 'tipo' => 'iluminacao', 'modo_acionamento' => 'alternar', 'liberado_moradores' => true]);
+        $this->entrarComo($morador = $this->usuarioCom(Perfil::Morador));
+
+        $tela = Livewire::test('pages::acessos.abrir')
+            ->call('atualizarEstados')
+            ->assertSee('Desligado')
+            ->assertSee('LIGAR')
+            ->call('abrir', $ponto->uuid, true)
+            ->assertSee('Ligado às')
+            ->assertSee('DESLIGAR');
+
+        $this->assertTrue($ponto->fresh()->ligado);
+
+        $tela->call('abrir', $ponto->uuid, false)->assertSee('Desligado às');
+        $this->assertFalse($ponto->fresh()->ligado);
+
+        $this->assertSame(
+            ['ligar', 'desligar'],
+            EventoAcesso::where('user_id', $morador->id)->orderBy('id')->get()->map(fn ($e) => $e->acao->value)->all(),
+        );
+    }
+
+    public function test_ponto_de_pulso_continua_com_botao_abrir(): void
+    {
+        $ponto = $this->ponto(['nome' => 'Portão', 'liberado_moradores' => true]);
+        $this->entrarComo($this->usuarioCom(Perfil::Morador));
+
+        Livewire::test('pages::acessos.abrir')
+            ->assertSee('ABRIR')
+            ->assertDontSee('DESLIGAR')
+            ->call('abrir', $ponto->uuid)
+            ->assertSee('Aberto às');
+
+        $this->assertSame('abrir', EventoAcesso::latest('id')->first()->acao->value);
+    }
 }

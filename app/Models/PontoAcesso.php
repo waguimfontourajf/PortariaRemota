@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -30,6 +31,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property bool $liberado_moradores
  * @property bool $ativo
  * @property int $ordem
+ * @property bool|null $ligado Último estado conhecido (liga / desliga)
+ * @property Carbon|null $estado_em
  * @property string|null $observacoes
  * @property-read Dispositivo|null $dispositivo
  */
@@ -61,7 +64,19 @@ class PontoAcesso extends Model
             'liberado_moradores' => 'boolean',
             'ativo' => 'boolean',
             'ordem' => 'integer',
+            'ligado' => 'boolean',
+            'estado_em' => 'datetime',
         ];
+    }
+
+    public function ehLigaDesliga(): bool
+    {
+        return $this->modo_acionamento === ModoAcionamento::Alternar;
+    }
+
+    public function registrarEstado(?bool $ligado): void
+    {
+        $this->forceFill(['ligado' => $ligado, 'estado_em' => now()])->saveQuietly();
     }
 
     /**

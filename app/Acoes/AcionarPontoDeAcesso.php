@@ -22,8 +22,18 @@ use Illuminate\Support\Facades\Cache;
  */
 class AcionarPontoDeAcesso
 {
-    public function __invoke(PontoAcesso $ponto, ?User $usuario, OrigemEvento $origem, ?string $ip = null): EventoAcesso
+    private AcaoEvento $acao = AcaoEvento::Abrir;
+
+    /**
+     * @param  bool|null  $ligar  Para pontos "liga / desliga": true = ligar, false = desligar,
+     *                            null = inverter o estado atual (consulta o aparelho).
+     */
+    public function __invoke(PontoAcesso $ponto, ?User $usuario, OrigemEvento $origem, ?string $ip = null, ?bool $ligar = null): EventoAcesso
     {
+        $this->acao = $ponto->ehLigaDesliga()
+            ? ($ligar === null ? AcaoEvento::Abrir : ($ligar ? AcaoEvento::Ligar : AcaoEvento::Desligar))
+            : AcaoEvento::Abrir;
+
         if (! RegrasDeAcesso::podeAbrir($usuario, $ponto)) {
             return $this->registrar($ponto, $usuario, $origem, $ip, ResultadoEvento::Negado, 'Usuário sem permissão para abrir este ponto.');
         }
@@ -48,9 +58,20 @@ class AcionarPontoDeAcesso
         try {
             $driver = $dispositivo->driverDeRele();
 
-            $resultado = $ponto->modo_acionamento === ModoAcionamento::Alternar
-                ? $this->alternar($driver, $dispositivo, $ponto->canal)
-                : $driver->pulso($dispositivo, $ponto->canal, $ponto->tempo_pulso_ms);
+            if ($ponto->modo_acionamento === ModoAcionamento::Alternar) {
+                $resultado = match ($ligar) {
+                    true => $driver->ligar($dispositivo, $ponto->canal),
+                    false => $driver->desligar($dispositivo, $ponto->canal),
+                    null => $this->alternar($driver, $dispositivo, $ponto->canal),
+                };
+
+                if ($resultado->sucesso) {
+                    $ponto->registrarEstado($resultado->ligado);
+                    $this->acao = $resultado->ligado ? AcaoEvento::Ligar : AcaoEvento::Desligar;
+                }
+            } else {
+                $resultado = $driver->pulso($dispositivo, $ponto->canal, $ponto->tempo_pulso_ms);
+            }
 
             $dispositivo->registrarContato($resultado->sucesso, $resultado->sucesso ? null : $resultado->mensagem);
         } finally {
@@ -91,7 +112,7 @@ class AcionarPontoDeAcesso
             'ponto_nome' => $ponto->nome,
             'usuario_nome' => $usuario?->name,
             'origem' => $origem,
-            'acao' => AcaoEvento::Abrir,
+            'acao' => $this->acao,
             'resultado' => $resultado,
             'detalhe' => mb_substr($detalhe, 0, 1000),
             'duracao_ms' => $duracao,

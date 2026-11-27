@@ -13,8 +13,8 @@ enum AcaoEvento: string
     {
         return match ($this) {
             self::Abrir => 'Abertura',
-            self::Ligar => 'Ligar',
-            self::Desligar => 'Desligar',
+            self::Ligar => 'Ligou',
+            self::Desligar => 'Desligou',
             self::Testar => 'Teste de comunicação',
         };
     }
