@@ -11,6 +11,7 @@ enum OrigemEvento: string
     case Interfone = 'interfone';
     case Api = 'api';
     case Sistema = 'sistema';
+    case Leitora = 'leitora';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum OrigemEvento: string
             self::Interfone => 'Interfone',
             self::Api => 'API',
             self::Sistema => 'Sistema',
+            self::Leitora => 'Leitora facial',
         };
     }
 }

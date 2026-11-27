@@ -103,6 +103,7 @@ No primeiro login, o super admin é levado para **Configurações → Segurança
 | `php artisan portaria:tuya-procurar` | Encontra aparelhos Tuya na rede (IP, ID, versão) |
 | `php artisan portaria:tuya-chaves` | Busca as chaves locais dos aparelhos Tuya (uma vez) |
 | `php artisan portaria:leitoras-sincronizar` | Envia as pessoas (foto + autorização) para as leitoras faciais |
+| `php artisan portaria:leitoras-importar` | Traz para o Histórico as passagens registradas pelas leitoras |
 
 ## Perfis de acesso
 

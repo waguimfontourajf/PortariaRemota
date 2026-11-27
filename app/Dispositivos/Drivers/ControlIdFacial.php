@@ -4,9 +4,12 @@ namespace App\Dispositivos\Drivers;
 
 use App\Dispositivos\Campo;
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
 use App\Models\HorarioAcesso;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use App\Models\Dispositivo;
 
 /**
@@ -174,6 +177,50 @@ class ControlIdFacial extends LeitoraFacialBase
 
             return Resultado::ok('Pessoa removida da leitora.');
         }));
+    }
+
+    /**
+     * access_logs (eventos 7 = liberado, 6 = negado, 3 e 10 = não identificado).
+     */
+    public function buscarPassagens(Dispositivo $dispositivo, ?string $cursor, CarbonInterface $desde): array
+    {
+        return $this->comSessao($dispositivo, function (string $sessao) use ($dispositivo, $cursor, $desde) {
+            $limite = 200;
+            $onde = $cursor !== null
+                ? ['access_logs' => ['id' => ['>' => (int) $cursor]]]
+                : ['access_logs' => ['time' => ['>' => $desde->getTimestamp()]]];
+
+            $registros = $this->api($dispositivo, $sessao, 'load_objects.fcgi', [
+                'object' => 'access_logs', 'where' => $onde, 'order' => ['id'], 'limit' => $limite,
+            ])['access_logs'] ?? [];
+
+            $passagens = [];
+            $ultimo = $cursor;
+
+            foreach ($registros as $registro) {
+                $ultimo = (string) max((int) $ultimo, (int) ($registro['id'] ?? 0));
+                $evento = (int) ($registro['event'] ?? 0);
+
+                if (! in_array($evento, [3, 6, 7, 10], true)) {
+                    continue; // botoeira, abertura remota, pendências...
+                }
+
+                $codigo = (int) ($registro['user_id'] ?? 0);
+                $passagens[] = new PassagemNaLeitora(
+                    referencia: 'controlid-'.$registro['id'],
+                    momento: Carbon::createFromTimestamp((int) ($registro['time'] ?? 0)),
+                    codigoPessoa: $codigo > 0 ? $codigo : null,
+                    liberada: $evento === 7,
+                    descricao: match ($evento) {
+                        7 => 'Liberado por reconhecimento facial.',
+                        6 => 'Acesso negado pela leitora (fora do horário, validade ou regra).',
+                        default => 'Rosto não reconhecido.',
+                    },
+                );
+            }
+
+            return ['passagens' => $passagens, 'cursor' => $ultimo, 'mais' => count($registros) >= $limite];
+        });
     }
 
     protected function abrirPorta(Dispositivo $dispositivo, int $porta): void

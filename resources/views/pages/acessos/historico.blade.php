@@ -4,6 +4,9 @@ use App\Enums\Permissao;
 use App\Enums\ResultadoEvento;
 use App\Livewire\Concerns\OperaNoCondominioAtual;
 use App\Models\EventoAcesso;
+use App\Support\ImportacaoDePassagens;
+use App\Support\SincronizacaoFacial;
+use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -48,6 +51,36 @@ new #[Title('Histórico')] class extends Component {
         return auth()->user()->can(Permissao::HistoricoVer->value);
     }
 
+    /** Leitoras que não responderam na última importação de passagens. */
+    public array $errosDasLeitoras = [];
+
+    /**
+     * Traz as passagens das leitoras faciais (chamado depois que a página
+     * abre, para não atrasar a tela). Cada leitora é consultada no máximo a
+     * cada 2 minutos; "Buscar agora" ignora esse intervalo.
+     */
+    public function importarPassagens(bool $agora = false): void
+    {
+        $agora = $agora && $this->podeVerTudo();
+        $totais = app(ImportacaoDePassagens::class)->importarDoCondominio($this->condominio(), $agora ? 0 : 120);
+        $this->errosDasLeitoras = $totais['erros'];
+
+        if ($totais['importadas'] > 0) {
+            unset($this->eventos);
+        }
+
+        if ($agora) {
+            Flux::toast(variant: $totais['erros'] ? 'warning' : 'success',
+                text: trans_choice('{0} Nenhuma passagem nova.|{1} 1 passagem nova.|[2,*] :count passagens novas.', $totais['importadas']));
+        }
+    }
+
+    #[Computed]
+    public function temLeitoras(): bool
+    {
+        return app(SincronizacaoFacial::class)->leitoras($this->condominio())->isNotEmpty();
+    }
+
     #[Computed]
     public function pontos()
     {
@@ -72,8 +105,20 @@ new #[Title('Histórico')] class extends Component {
     }
 }; ?>
 
-<section class="w-full">
-    <x-cabecalho-pagina :titulo="__('Histórico de acessos')" :subtitulo="$this->podeVerTudo() ? __('Todas as aberturas e tentativas neste condomínio.') : __('Suas aberturas neste condomínio.')" />
+<section class="w-full" @if ($this->temLeitoras) wire:init="importarPassagens" @endif>
+    <x-cabecalho-pagina :titulo="__('Histórico de acessos')" :subtitulo="$this->podeVerTudo() ? __('Todas as aberturas e tentativas neste condomínio.') : __('Suas aberturas neste condomínio.')">
+        @if ($this->temLeitoras && $this->podeVerTudo())
+            <x-slot:acoes>
+                <flux:button icon="arrow-path" wire:click="importarPassagens(true)" wire:target="importarPassagens" wire:loading.attr="disabled">{{ __('Buscar passagens das leitoras') }}</flux:button>
+            </x-slot:acoes>
+        @endif
+    </x-cabecalho-pagina>
+
+    @if ($errosDasLeitoras && $this->podeVerTudo())
+        <flux:callout class="mb-4" variant="warning" icon="exclamation-triangle" :heading="__('Não foi possível ler as passagens de alguma leitora')">
+            <flux:callout.text>{{ implode(' | ', $errosDasLeitoras) }}</flux:callout.text>
+        </flux:callout>
+    @endif
 
     <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <flux:select wire:model.live="ponto">

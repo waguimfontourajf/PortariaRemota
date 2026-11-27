@@ -57,6 +57,7 @@ class Dispositivo extends Model
             'ativo' => 'boolean',
             'online' => 'boolean',
             'ultimo_contato_em' => 'datetime',
+            'eventos_importados_em' => 'datetime',
         ];
     }
 

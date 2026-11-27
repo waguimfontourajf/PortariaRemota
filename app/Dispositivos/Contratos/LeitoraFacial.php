@@ -2,9 +2,11 @@
 
 namespace App\Dispositivos\Contratos;
 
+use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
 use App\Models\Dispositivo;
+use Carbon\CarbonInterface;
 
 /**
  * Leitora de reconhecimento facial que recebe o cadastro das pessoas do
@@ -30,4 +32,14 @@ interface LeitoraFacial
      * Remove a pessoa (e a foto) da leitora. Não falha se ela não existir lá.
      */
     public function removerPessoa(Dispositivo $dispositivo, int $codigo): Resultado;
+
+    /**
+     * Passagens registradas pela leitora depois do cursor (ou desde $desde,
+     * na primeira vez). "mais" = ainda há eventos para buscar.
+     *
+     * @return array{passagens: list<PassagemNaLeitora>, cursor: ?string, mais: bool}
+     *
+     * @throws \App\Dispositivos\ExcecaoDeComunicacao
+     */
+    public function buscarPassagens(Dispositivo $dispositivo, ?string $cursor, CarbonInterface $desde): array;
 }

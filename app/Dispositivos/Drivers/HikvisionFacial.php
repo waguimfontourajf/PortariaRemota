@@ -4,9 +4,13 @@ namespace App\Dispositivos\Drivers;
 
 use App\Dispositivos\Campo;
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
 use App\Models\HorarioAcesso;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use App\Models\Dispositivo;
 use Illuminate\Http\Client\Response;
 
@@ -135,6 +139,64 @@ class HikvisionFacial extends LeitoraFacialBase
         ]), "gravar o modelo do horário \"{$horario->nome}\"");
 
         $this->marcarHorarioConfigurado($dispositivo, $horario);
+    }
+
+    /**
+     * AcsEvent (major 5): minor 75 = rosto reconhecido; 76 = falha no rosto.
+     * O cursor é a data/hora do último evento lido.
+     */
+    public function buscarPassagens(Dispositivo $dispositivo, ?string $cursor, CarbonInterface $desde): array
+    {
+        $fuso = $dispositivo->condominio?->fuso_horario ?? 'America/Sao_Paulo';
+        $inicio = ($cursor !== null ? Carbon::parse($cursor) : Carbon::instance($desde))->setTimezone($fuso);
+        $fim = now($fuso)->addDay();
+        $busca = (string) Str::uuid();
+        $posicao = 0;
+        $passagens = [];
+        $ultimo = $cursor;
+        $mais = false;
+
+        // Alguns modelos aceitam no máximo 10 resultados por página.
+        for ($pagina = 0; $pagina < 30; $pagina++) {
+            $resposta = $this->json($dispositivo, 'POST', '/ISAPI/AccessControl/AcsEvent?format=json', ['AcsEventCond' => [
+                'searchID' => $busca, 'searchResultPosition' => $posicao, 'maxResults' => 10,
+                'major' => 5, 'minor' => 0,
+                'startTime' => $inicio->format('Y-m-d\TH:i:sP'), 'endTime' => $fim->format('Y-m-d\TH:i:sP'),
+            ]]);
+            $this->exigirSucesso($resposta, 'ler os eventos');
+            $dados = $resposta->json('AcsEvent') ?? [];
+
+            foreach ($dados['InfoList'] ?? [] as $info) {
+                $momento = Carbon::parse($info['time'] ?? 'now');
+                $ultimo = $ultimo === null || $momento->gt(Carbon::parse($ultimo)) ? $momento->toIso8601String() : $ultimo;
+                $minor = (int) ($info['minor'] ?? 0);
+
+                if (! in_array($minor, [75, 76], true)) {
+                    continue;
+                }
+
+                $codigo = (int) ($info['employeeNoString'] ?? $info['employeeNo'] ?? 0);
+                $passagens[] = new PassagemNaLeitora(
+                    referencia: 'hikvision-'.($info['serialNo'] ?? '').'-'.$momento->getTimestamp(),
+                    momento: $momento,
+                    codigoPessoa: $codigo > 0 ? $codigo : null,
+                    liberada: $minor === 75,
+                    descricao: $minor === 75 ? 'Liberado por reconhecimento facial.' : 'Rosto não reconhecido ou acesso negado pela leitora.',
+                );
+            }
+
+            $quantidade = (int) ($dados['numOfMatches'] ?? 0);
+            $mais = ($dados['responseStatusStrg'] ?? '') === 'MORE';
+
+            if (! $mais || $quantidade === 0) {
+                $mais = false;
+                break;
+            }
+
+            $posicao += $quantidade;
+        }
+
+        return ['passagens' => $passagens, 'cursor' => $ultimo, 'mais' => $mais];
     }
 
     protected function abrirPorta(Dispositivo $dispositivo, int $porta): void

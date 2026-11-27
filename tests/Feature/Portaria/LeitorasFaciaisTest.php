@@ -5,10 +5,12 @@ namespace Tests\Feature\Portaria;
 use App\Enums\Perfil;
 use App\Models\Bloco;
 use App\Models\Dispositivo;
+use App\Models\EventoAcesso;
 use App\Models\HorarioAcesso;
 use App\Models\Pessoa;
 use App\Models\Unidade;
 use App\Support\FotoDePessoa;
+use App\Support\ImportacaoDePassagens;
 use App\Support\SincronizacaoFacial;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -366,5 +368,74 @@ class LeitorasFaciaisTest extends CadastrosTestCase
         $this->assertSame(1, $horario->numero);
         $this->assertSame([1, 2, 3, 4, 5], $horario->dias);
         $this->assertSame('Seg a Sex · 08:00 às 17:00', $horario->descricao());
+    }
+
+    public function test_importa_passagens_da_intelbras_sem_duplicar(): void
+    {
+        $pessoa = $this->pessoaLiberada();
+        $agora = now()->getTimestamp();
+        Http::fake(['*recordFinder.cgi*' => Http::response(implode("\r\n", [
+            'found=3',
+            "records[0].CreateTime={$agora}", 'records[0].Method=15', "records[0].UserID={$pessoa->id}", 'records[0].RecNo=10', 'records[0].Status=1',
+            "records[1].CreateTime={$agora}", 'records[1].Method=1', 'records[1].UserID=5', 'records[1].RecNo=11',
+            "records[2].CreateTime={$agora}", 'records[2].Method=15', 'records[2].UserID=0', 'records[2].RecNo=12', 'records[2].Status=0',
+        ]))]);
+        $leitora = $this->leitora('intelbras_facial');
+
+        $this->assertSame(2, app(ImportacaoDePassagens::class)->importar($leitora));
+        $this->assertSame(0, app(ImportacaoDePassagens::class)->importar($leitora->fresh()), 'não importa de novo');
+
+        $this->assertDatabaseHas('eventos_acesso', ['pessoa_id' => $pessoa->id, 'origem' => 'leitora', 'resultado' => 'sucesso', 'usuario_nome' => 'Maria Souza']);
+        $this->assertDatabaseHas('eventos_acesso', ['pessoa_id' => null, 'resultado' => 'negado', 'usuario_nome' => 'Rosto não reconhecido']);
+        $this->assertSame((string) $agora, $leitora->fresh()->eventos_cursor);
+    }
+
+    public function test_importa_passagens_da_hikvision(): void
+    {
+        $pessoa = $this->pessoaLiberada();
+        Http::fake(['*AcsEvent*' => Http::response(['AcsEvent' => [
+            'responseStatusStrg' => 'OK', 'numOfMatches' => 2,
+            'InfoList' => [
+                ['major' => 5, 'minor' => 75, 'time' => '2026-11-27T10:00:00-03:00', 'employeeNoString' => (string) $pessoa->id, 'serialNo' => 575],
+                ['major' => 5, 'minor' => 22, 'time' => '2026-11-27T10:00:05-03:00', 'serialNo' => 576],
+            ],
+        ]])]);
+        $leitora = $this->leitora('hikvision_facial');
+
+        $this->assertSame(1, app(ImportacaoDePassagens::class)->importar($leitora));
+
+        $evento = EventoAcesso::where('pessoa_id', $pessoa->id)->firstOrFail();
+        $this->assertSame('2026-11-27 13:00:00', $evento->created_at->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_importa_passagens_da_control_id(): void
+    {
+        $pessoa = $this->pessoaLiberada();
+        Http::fake([
+            '*/login.fcgi' => Http::response(['session' => 'abc123']),
+            '*/load_objects.fcgi*' => Http::response(['access_logs' => [
+                ['id' => 41, 'time' => now()->getTimestamp(), 'event' => 7, 'user_id' => $pessoa->id],
+                ['id' => 42, 'time' => now()->getTimestamp(), 'event' => 12, 'user_id' => 0],
+                ['id' => 43, 'time' => now()->getTimestamp(), 'event' => 6, 'user_id' => $pessoa->id],
+            ]]),
+            '*' => Http::response([]),
+        ]);
+        $leitora = $this->leitora('controlid_facial');
+
+        $this->assertSame(2, app(ImportacaoDePassagens::class)->importar($leitora));
+        $this->assertSame('43', $leitora->fresh()->eventos_cursor);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'load_objects.fcgi') && ($r['object'] ?? null) === 'access_logs');
+    }
+
+    public function test_morador_ve_a_propria_passagem_no_historico(): void
+    {
+        $morador = $this->usuarioCom(Perfil::Morador);
+        $pessoa = $this->pessoaLiberada();
+        $pessoa->forceFill(['user_id' => $morador->id])->save();
+        Http::fake(['*recordFinder.cgi*' => Http::response('records[0].CreateTime='.now()->getTimestamp()."\r\nrecords[0].Method=15\r\nrecords[0].UserID={$pessoa->id}\r\nrecords[0].RecNo=1")]);
+        app(ImportacaoDePassagens::class)->importar($this->leitora('intelbras_facial'));
+
+        $this->entrarComo($morador);
+        Livewire::test('pages::acessos.historico')->assertSee('Maria Souza')->assertSee('Leitora facial');
     }
 }

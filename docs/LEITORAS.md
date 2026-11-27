@@ -100,7 +100,27 @@ php artisan portaria:leitoras-sincronizar            # todas as leitoras
 php artisan portaria:leitoras-sincronizar "Leitora portaria" --todas
 ```
 
-## 6. Erros comuns
+## 6. Passagens no Histórico
+
+As passagens registradas pelas leitoras (rosto **liberado**, **negado** ou **não reconhecido**) aparecem em **Histórico**, com origem **Leitora facial**.
+
+- Ao abrir o Histórico, o sistema busca as passagens novas (cada leitora no máximo a cada 2 minutos), sem atrasar a tela. O botão **Buscar passagens das leitoras** busca na hora.
+- Na **primeira vez**, busca só os últimos **7 dias**. Depois, continua de onde parou; nada é importado duas vezes.
+- A pessoa aparece pelo nome do cadastro. O morador que tem login vinculado à pessoa vê as próprias passagens.
+- O ponto mostrado é o **ponto de acesso** que usa a leitora (ou o nome da leitora, se ela não estiver em nenhum ponto).
+- Pelo terminal: `php artisan portaria:leitoras-importar`.
+
+O que é lido de cada marca:
+
+| Marca | Origem | Liberado | Negado / não reconhecido |
+|---|---|---|---|
+| Intelbras | registros de acesso (AccessControlCardRec), só os de **rosto** | Status 1 | Status 0 |
+| Hikvision | eventos de controle de acesso (AcsEvent) | evento 75 | evento 76 |
+| Control iD | access_logs | evento 7 | eventos 6, 3 e 10 |
+
+> Os horários vêm das leitoras: mantenha o **relógio da leitora** certo (de preferência sincronizado pela internet/NTP).
+
+## 7. Erros comuns
 
 | Mensagem | O que fazer |
 |---|---|
@@ -110,6 +130,8 @@ php artisan portaria:leitoras-sincronizar "Leitora portaria" --todas
 | Este rosto já está cadastrado para outra pessoa | A mesma pessoa está duplicada no cadastro (ou na leitora, cadastrada à mão) |
 | Não respondeu como Intelbras/Hikvision | Driver errado para a marca/modelo, ou porta diferente de 80 |
 
-## 7. O que ainda não faz
+## 8. O que ainda não faz
 
-- **Histórico vindo da leitora** (quem passou pelo rosto): os acessos por reconhecimento facial ficam só na leitora por enquanto.
+- **Feriados**: os horários valem pelos dias da semana; feriados não são tratados.
+- **Um horário por pessoa**, igual em todas as leitoras do condomínio.
+- Passagens por **cartão, senha ou botoeira** não são importadas (só as de rosto).

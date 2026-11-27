@@ -3,9 +3,12 @@
 namespace App\Dispositivos\Drivers;
 
 use App\Dispositivos\ExcecaoDeComunicacao;
+use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
 use App\Models\HorarioAcesso;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use App\Models\Dispositivo;
 use Illuminate\Http\Client\Response;
 
@@ -111,6 +114,54 @@ class IntelbrasFacial extends LeitoraFacialBase
 
         $this->exigirOk($this->get($dispositivo, '/cgi-bin/configManager.cgi?action=setConfig&'.implode('&', $parametros)), "gravar o horário \"{$horario->nome}\"");
         $this->marcarHorarioConfigurado($dispositivo, $horario);
+    }
+
+    /**
+     * recordFinder AccessControlCardRec: Method 15 = reconhecimento facial;
+     * Status 0 = negado (sem Status = liberado). CreateTime em UTC.
+     */
+    public function buscarPassagens(Dispositivo $dispositivo, ?string $cursor, CarbonInterface $desde): array
+    {
+        $limite = 200;
+        $inicio = $cursor !== null ? (int) $cursor : $desde->getTimestamp();
+        $fim = now()->addDay()->getTimestamp();
+
+        $resposta = $this->get($dispositivo, "/cgi-bin/recordFinder.cgi?action=find&name=AccessControlCardRec&StartTime={$inicio}&EndTime={$fim}&count={$limite}");
+
+        if ($resposta->failed()) {
+            throw new ExcecaoDeComunicacao('A leitora não entregou os registros de acesso (HTTP '.$resposta->status().').');
+        }
+
+        $registros = [];
+        foreach (preg_split('/\r?\n/', trim($resposta->body())) as $linha) {
+            if (preg_match('/^records\[(\d+)\]\.(\w+)=(.*)$/', trim($linha), $m)) {
+                $registros[(int) $m[1]][$m[2]] = trim($m[3]);
+            }
+        }
+
+        $passagens = [];
+        $ultimo = $cursor;
+
+        foreach ($registros as $registro) {
+            $momento = (int) ($registro['CreateTime'] ?? 0);
+            $ultimo = (string) max((int) $ultimo, $momento);
+
+            if (($registro['Method'] ?? '') !== '15') {
+                continue; // cartão, senha, abertura remota...
+            }
+
+            $liberada = ($registro['Status'] ?? '1') !== '0';
+            $codigo = (int) ($registro['UserID'] ?? 0);
+            $passagens[] = new PassagemNaLeitora(
+                referencia: 'intelbras-'.($registro['RecNo'] ?? '').'-'.$momento,
+                momento: Carbon::createFromTimestamp($momento),
+                codigoPessoa: $codigo > 0 ? $codigo : null,
+                liberada: $liberada,
+                descricao: $liberada ? 'Liberado por reconhecimento facial.' : 'Acesso negado pela leitora (rosto, horário ou validade).',
+            );
+        }
+
+        return ['passagens' => $passagens, 'cursor' => $ultimo, 'mais' => count($registros) >= $limite];
     }
 
     protected function abrirPorta(Dispositivo $dispositivo, int $porta): void
