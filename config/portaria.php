@@ -79,4 +79,22 @@ return [
         'pulso_maximo_ms' => 30000,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Atualização pelo painel (servidor Windows)
+    |--------------------------------------------------------------------------
+    |
+    | O botão "Atualizar sistema" pede ao Windows para executar a tarefa
+    | agendada criada por implantacao\instalar-atualizacao-pelo-painel.bat.
+    |
+    */
+
+    'atualizacao' => [
+        'tarefa' => env('PORTARIA_ATUALIZACAO_TAREFA', 'PortariaRemota\\Atualizar'),
+        // null = automático (habilitada somente no Windows)
+        'habilitada' => env('PORTARIA_ATUALIZACAO_PAINEL'),
+        // Depois desse tempo, uma atualização "executando" é considerada travada.
+        'limite_minutos' => 20,
+    ],
+
 ];

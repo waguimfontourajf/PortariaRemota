@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\EstadoAtualizacaoController;
 use App\Http\Controllers\TrocarCondominioController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,12 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('equipamentos/dispositivos/novo', 'pages::dispositivos.form')->name('dispositivos.criar');
     Route::livewire('equipamentos/dispositivos/{dispositivo}/editar', 'pages::dispositivos.form')->name('dispositivos.editar');
     Route::livewire('equipamentos/pontos-de-acesso', 'pages::dispositivos.pontos')->name('pontos.index');
+
+    // Sistema (super admin)
+    Route::livewire('sistema/atualizacao', 'pages::sistema.atualizacao')
+        ->middleware('password.confirm')
+        ->name('sistema.atualizacao');
+    Route::get('sistema/atualizacao/estado', EstadoAtualizacaoController::class)->name('sistema.atualizacao.estado');
 
     // Usuários do condomínio atual
     Route::livewire('usuarios', 'pages::usuarios.index')->name('usuarios.index');

@@ -1,30 +1,42 @@
 @echo off
 REM ==========================================================
 REM  Portaria Remota - instala/atualiza no servidor Windows
-REM  Execute pelo Terminal do Laragon (ou CMD com php, composer,
-REM  node e git no PATH), dentro da pasta do projeto:
+REM
+REM  Pelo terminal (Laragon/Cmder), dentro da pasta do projeto:
 REM      implantacao\atualizar.bat
+REM
+REM  Ou pelo painel: Administracao > Atualizar sistema
+REM  (requer implantacao\instalar-atualizacao-pelo-painel.bat)
 REM ==========================================================
 setlocal
 cd /d "%~dp0.."
 
+REM PATH salvo pelo instalador (php, composer, node e git do Laragon),
+REM usado quando a atualizacao e disparada pelo painel.
+if exist "%~dp0ambiente.local.bat" call "%~dp0ambiente.local.bat"
+
+set "ESTADO_DIR=storage\app\atualizacao"
+if not exist "%ESTADO_DIR%" mkdir "%ESTADO_DIR%"
+> "%ESTADO_DIR%\estado.txt" echo executando
+
+echo Inicio: %date% %time%
 echo.
 echo [1/7] Verificando a versao do PHP (precisa ser 8.3 ou mais nova)...
 php -r "exit(version_compare(PHP_VERSION, '8.3.0', '>=') ? 0 : 1);"
 if errorlevel 1 (
     php -v
     echo ERRO: o PHP precisa ser 8.3 ou mais novo. Veja docs\IMPLANTACAO.md
-    exit /b 1
+    goto erro_sem_manutencao
 )
 
 echo [2/7] Baixando a versao mais recente do codigo...
-git pull --ff-only || exit /b 1
+git pull --ff-only || goto erro_sem_manutencao
 
 echo [3/7] Modo manutencao...
-if exist vendor\autoload.php php artisan down --retry=15 >nul 2>&1
+if exist vendor\autoload.php php artisan down --retry=15
 
 echo [4/7] Dependencias PHP...
-call composer install --no-dev --optimize-autoloader --no-interaction || goto erro
+call composer install --no-dev --optimize-autoloader --no-interaction --no-progress || goto erro
 
 echo [5/7] Telas (CSS/JS)...
 call npm ci --no-audit --no-fund || goto erro
@@ -38,12 +50,20 @@ echo [7/7] Otimizando...
 php artisan optimize || goto erro
 php artisan up
 
+git log -1 --format="%%h|%%cI|%%s" > "%ESTADO_DIR%\versao.txt"
+> "%ESTADO_DIR%\estado.txt" echo sucesso
 echo.
+echo Fim: %date% %time%
 echo Pronto! Sistema atualizado.
 exit /b 0
 
 :erro
 echo.
-echo ERRO durante a atualizacao. O sistema continua em manutencao.
-echo Corrija o problema e rode este script de novo (ou "php artisan up").
+echo ERRO durante a atualizacao. Tirando o sistema da manutencao para que
+echo a tela de atualizacao mostre este registro. Veja a mensagem acima.
+php artisan up
+
+:erro_sem_manutencao
+> "%ESTADO_DIR%\estado.txt" echo erro
+echo Fim com erro: %date% %time%
 exit /b 1

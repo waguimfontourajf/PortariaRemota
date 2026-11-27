@@ -70,6 +70,9 @@
                             <flux:sidebar.item icon="building-office-2" :href="route('condominios.index')" :current="request()->routeIs('condominios.index', 'condominios.criar')" wire:navigate>
                                 {{ __('Todos os condomínios') }}
                             </flux:sidebar.item>
+                            <flux:sidebar.item icon="arrow-down-tray" :href="route('sistema.atualizacao')" :current="request()->routeIs('sistema.atualizacao')" wire:navigate>
+                                {{ __('Atualizar sistema') }}
+                            </flux:sidebar.item>
                         @endif
                     </flux:sidebar.group>
                 @endif

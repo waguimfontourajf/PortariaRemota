@@ -123,13 +123,28 @@ Quem acessar recebe um código por e-mail antes de ver a tela de login. Quando o
 
 ## 8. Atualizar depois (a cada etapa nova)
 
-No terminal, dentro da pasta do projeto:
+### Pelo painel (recomendado)
+
+**Configuração única.** Abra o Terminal do Laragon **como administrador** e, dentro da pasta do projeto, rode:
+
+```bash
+implantacao\instalar-atualizacao-pelo-painel.bat
+```
+
+Esse script cria a tarefa agendada do Windows **PortariaRemota\Atualizar** e guarda o caminho do php, composer, node e git.
+
+Daí em diante, para atualizar: **Administração → Atualizar sistema → Atualizar agora**.
+- Só aparece para o super admin e pede a senha de novo.
+- A tela mostra o andamento ao vivo. O sistema fica em manutenção por 1 a 3 minutos.
+- O painel **não executa nada diretamente**: ele só pede ao Windows para rodar a tarefa, que usa o seu usuário. Por isso esse usuário precisa estar **logado no Windows** do servidor.
+
+### Pelo terminal
 
 ```bash
 implantacao\atualizar.bat
 ```
 
-O script coloca o sistema em manutenção, baixa o código, instala dependências, compila as telas, atualiza o banco e tira da manutenção.
+As duas formas executam o mesmo script: baixam o código, instalam dependências, compilam as telas, atualizam o banco e tiram o sistema da manutenção. O registro fica em `storage\logs\atualizacao.log`.
 
 ## 9. Comandos Tuya no servidor
 
@@ -154,3 +169,5 @@ Se o Windows perguntar sobre o firewall no `tuya-procurar`, **permita** o PHP em
 | Tela sem estilo | Rodar `npm run build` |
 | "Bad gateway" no Cloudflare | Apache parado, ou URL do túnel diferente de `localhost:80` |
 | Mudou o `.env` e nada aconteceu | Rodar `php artisan optimize` (o `.env` fica em cache) |
+| Botão "Atualizar agora" não faz nada | Rodar de novo `implantacao\instalar-atualizacao-pelo-painel.bat` como administrador; ver `storage\logs\atualizacao.log` |
+| Sistema ficou em "manutenção" | No terminal: `php artisan up` |
