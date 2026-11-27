@@ -102,6 +102,7 @@ No primeiro login, o super admin é levado para **Configurações → Segurança
 | `php artisan portaria:dispositivo-testar` | Testa um dispositivo (use `--detalhes` para diagnóstico) |
 | `php artisan portaria:tuya-procurar` | Encontra aparelhos Tuya na rede (IP, ID, versão) |
 | `php artisan portaria:tuya-chaves` | Busca as chaves locais dos aparelhos Tuya (uma vez) |
+| `php artisan portaria:leitoras-sincronizar` | Envia as pessoas (foto + autorização) para as leitoras faciais |
 
 ## Perfis de acesso
 
@@ -130,8 +131,9 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `app/Http/Middleware/` | Condomínio atual, 2FA obrigatório e bloqueio de usuário inativo |
 | `config/portaria.php` | Configurações próprias do sistema |
 | `lang/pt_BR*` | Traduções |
-| `app/Dispositivos/` | Drivers de relé (Shelly, Tuya, Modbus, HTTP genérico, simulador) e protocolos Tuya/Modbus |
+| `app/Dispositivos/` | Drivers de relé (Shelly, Tuya, Modbus, HTTP genérico, simulador), leitoras faciais (Control iD, Intelbras, Hikvision) e protocolos Tuya/Modbus |
 | `app/Acoes/AcionarPontoDeAcesso.php` | Único caminho para abrir um portão (permissão, trava, histórico) |
 | `docs/PROJETO.md` | Documento do projeto |
 | `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |
 | `docs/MODBUS.md` | Módulos de relé Modbus com porta de rede (eletechsup e similares) |
+| `docs/LEITORAS.md` | Leitoras de reconhecimento facial: foto, LGPD e sincronização |

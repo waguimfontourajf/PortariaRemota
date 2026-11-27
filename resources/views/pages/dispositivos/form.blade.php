@@ -5,6 +5,9 @@ use App\Dispositivos\RegistroDeDrivers;
 use App\Enums\Permissao;
 use App\Livewire\Concerns\OperaNoCondominioAtual;
 use App\Models\Dispositivo;
+use App\Models\Pessoa;
+use App\Support\SincronizacaoFacial;
+use Illuminate\Support\Facades\DB;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -36,6 +39,9 @@ new class extends Component {
     public int $canalTeste = 1;
 
     public ?array $ultimoTeste = null;
+
+    /** Resultado da última sincronização de pessoas (leitoras faciais). */
+    public ?array $ultimaSincronizacao = null;
 
     public function mount(?Dispositivo $dispositivo = null): void
     {
@@ -121,6 +127,60 @@ new class extends Component {
             Flux::toast(variant: 'success', text: __('Dispositivo cadastrado. Agora teste a comunicação.'));
             $this->redirectRoute('dispositivos.editar', $novo, navigate: true);
         }
+    }
+
+    /**
+     * Esta tela é de uma leitora facial já salva?
+     */
+    #[Computed]
+    public function ehLeitoraSalva(): bool
+    {
+        if (! $this->dispositivoId) {
+            return false;
+        }
+
+        $dispositivo = $this->condominio()->dispositivos()->find($this->dispositivoId);
+
+        return $dispositivo !== null && $dispositivo->driver === $this->driver && app(SincronizacaoFacial::class)->ehLeitora($dispositivo);
+    }
+
+    /**
+     * Números para o quadro "Pessoas na leitora".
+     *
+     * @return array{liberadas: int, na_leitora: int, com_erro: int}
+     */
+    #[Computed]
+    public function resumoDaLeitora(): array
+    {
+        $liberadas = Pessoa::query()->doCondominio($this->condominio())->where('ativo', true)
+            ->whereNotNull('foto_path')->whereNotNull('biometria_autorizada_em')->count();
+        $registros = DB::table('dispositivo_pessoa')->where('dispositivo_id', $this->dispositivoId);
+
+        return [
+            'liberadas' => $liberadas,
+            'na_leitora' => (clone $registros)->whereNull('erro')->whereNotNull('sincronizado_em')->count(),
+            'com_erro' => (clone $registros)->whereNotNull('erro')->count(),
+        ];
+    }
+
+    /**
+     * Envia para a leitora as pessoas novas/alteradas e remove as que saíram.
+     */
+    public function sincronizarPessoas(bool $reenviarTodas = false): void
+    {
+        $this->exigirPermissao(Permissao::DispositivosGerenciar);
+        $dispositivo = $this->condominio()->dispositivos()->findOrFail($this->dispositivoId);
+        abort_unless(app(SincronizacaoFacial::class)->ehLeitora($dispositivo), 422);
+
+        $inicio = microtime(true);
+        $totais = app(SincronizacaoFacial::class)->sincronizarLeitora($dispositivo, $reenviarTodas);
+
+        activity('dispositivo')->causedBy(auth()->user())->performedOn($dispositivo)
+            ->withProperties([...$totais, 'erros' => count($totais['erros']), 'condominio_id' => $dispositivo->condominio_id])
+            ->log($reenviarTodas ? 'Reenviou todas as pessoas para a leitora' : 'Sincronizou as pessoas da leitora');
+
+        $this->ultimaSincronizacao = [...$totais, 'segundos' => (int) round(microtime(true) - $inicio)];
+        unset($this->resumoDaLeitora);
     }
 
     /**
@@ -326,6 +386,50 @@ new class extends Component {
                 @endif
             @endif
         </flux:fieldset>
+
+        @if ($this->ehLeitoraSalva)
+            <flux:fieldset>
+                <flux:legend>{{ __('Pessoas na leitora facial') }}</flux:legend>
+                <flux:description class="mb-4">{{ __('As pessoas são enviadas sozinhas ao salvar o cadastro delas. Use os botões para a primeira carga, depois de trocar a leitora ou se ela ficou desligada.') }}</flux:description>
+
+                <div class="mb-4 grid grid-cols-3 gap-3 text-center">
+                    <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                        <div class="text-2xl font-semibold">{{ $this->resumoDaLeitora['liberadas'] }}</div>
+                        <div class="text-xs text-zinc-500">{{ __('com foto e autorização') }}</div>
+                    </div>
+                    <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                        <div class="text-2xl font-semibold text-green-600">{{ $this->resumoDaLeitora['na_leitora'] }}</div>
+                        <div class="text-xs text-zinc-500">{{ __('na leitora') }}</div>
+                    </div>
+                    <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                        <div class="text-2xl font-semibold {{ $this->resumoDaLeitora['com_erro'] ? 'text-amber-500' : '' }}">{{ $this->resumoDaLeitora['com_erro'] }}</div>
+                        <div class="text-xs text-zinc-500">{{ __('com erro') }}</div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:button icon="arrow-path" wire:click="sincronizarPessoas(false)" wire:target="sincronizarPessoas" wire:loading.attr="disabled">{{ __('Sincronizar agora') }}</flux:button>
+                    <flux:button variant="ghost" wire:click="sincronizarPessoas(true)" wire:target="sincronizarPessoas" wire:loading.attr="disabled"
+                        wire:confirm="{{ __('Reenviar TODAS as pessoas para a leitora? Pode levar alguns minutos.') }}">{{ __('Reenviar todas') }}</flux:button>
+                    <span wire:loading wire:target="sincronizarPessoas" class="text-sm text-zinc-500">{{ __('Sincronizando… não feche a página.') }}</span>
+                </div>
+
+                @if ($ultimaSincronizacao)
+                    <flux:callout class="mt-4" :variant="$ultimaSincronizacao['erros'] ? 'warning' : 'success'" :icon="$ultimaSincronizacao['erros'] ? 'exclamation-triangle' : 'check-circle'"
+                        :heading="__(':e enviada(s), :r removida(s), :s sem mudança — :t s', ['e' => $ultimaSincronizacao['enviadas'], 'r' => $ultimaSincronizacao['removidas'], 's' => $ultimaSincronizacao['sem_mudanca'], 't' => $ultimaSincronizacao['segundos']])">
+                        @if ($ultimaSincronizacao['erros'])
+                            <flux:callout.text>
+                                <ul class="list-disc pl-4">
+                                    @foreach (array_slice($ultimaSincronizacao['erros'], 0, 30) as $erro)
+                                        <li>{{ $erro }}</li>
+                                    @endforeach
+                                </ul>
+                            </flux:callout.text>
+                        @endif
+                    </flux:callout>
+                @endif
+            </flux:fieldset>
+        @endif
 
         <flux:textarea wire:model="observacoes" :label="__('Observações')" rows="2" :placeholder="__('Local de instalação, fiação, etc.')" />
 

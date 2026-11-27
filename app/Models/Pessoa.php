@@ -32,6 +32,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $telefone
  * @property string|null $email
  * @property string|null $foto_path
+ * @property Carbon|null $biometria_autorizada_em
+ * @property int|null $biometria_autorizada_por
  * @property bool $ativo
  * @property string|null $observacoes
  * @property-read User|null $usuario
@@ -52,6 +54,7 @@ class Pessoa extends Model
             'tipo' => TipoPessoa::class,
             'data_nascimento' => 'date',
             'ativo' => 'boolean',
+            'biometria_autorizada_em' => 'datetime',
         ];
     }
 
@@ -62,6 +65,26 @@ class Pessoa extends Model
     {
         return $this->belongsToMany(Unidade::class, 'pessoa_unidade')
             ->withPivot(['vinculo', 'responsavel'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Pode ir para as leitoras faciais: ativa, com foto e com consentimento (LGPD).
+     */
+    public function liberadaParaLeitoraFacial(): bool
+    {
+        return $this->ativo && ! $this->trashed() && $this->foto_path !== null && $this->biometria_autorizada_em !== null;
+    }
+
+    /**
+     * Leitoras faciais para as quais a pessoa já foi enviada.
+     *
+     * @return BelongsToMany<Dispositivo, $this>
+     */
+    public function leitoras(): BelongsToMany
+    {
+        return $this->belongsToMany(Dispositivo::class, 'dispositivo_pessoa')
+            ->withPivot(['assinatura', 'sincronizado_em', 'erro'])
             ->withTimestamps();
     }
 

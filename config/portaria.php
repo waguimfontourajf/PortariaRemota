@@ -1,6 +1,9 @@
 <?php
 
+use App\Dispositivos\Drivers\ControlIdFacial;
+use App\Dispositivos\Drivers\HikvisionFacial;
 use App\Dispositivos\Drivers\HttpGenerico;
+use App\Dispositivos\Drivers\IntelbrasFacial;
 use App\Dispositivos\Drivers\ModbusRele;
 use App\Dispositivos\Drivers\Shelly;
 use App\Dispositivos\Drivers\Simulador;
@@ -62,6 +65,9 @@ return [
             Shelly::class,
             TuyaLocal::class,
             ModbusRele::class,
+            ControlIdFacial::class,
+            IntelbrasFacial::class,
+            HikvisionFacial::class,
             HttpGenerico::class,
             Simulador::class,
         ],

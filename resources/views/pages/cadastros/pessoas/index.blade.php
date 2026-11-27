@@ -4,6 +4,8 @@ use App\Enums\Permissao;
 use App\Enums\TipoPessoa;
 use App\Livewire\Concerns\OperaNoCondominioAtual;
 use App\Models\Pessoa;
+use App\Support\FotoDePessoa;
+use App\Support\SincronizacaoFacial;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -54,12 +56,32 @@ new #[Title('Pessoas')] class extends Component {
         $pessoa = $this->buscar($id);
         $pessoa->update(['ativo' => ! $pessoa->ativo]);
         Flux::toast(variant: 'success', text: $pessoa->ativo ? __('Pessoa reativada.') : __('Pessoa desativada.'));
+        $this->avisarLeitoras(app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa));
     }
 
     public function excluir(int $id): void
     {
-        $this->buscar($id)->delete();
+        $pessoa = $this->buscar($id);
+        $pessoa->delete();
         Flux::toast(variant: 'success', text: __('Pessoa excluída.'));
+
+        // Sai das leitoras faciais e a foto (dado biométrico) é apagada.
+        $this->avisarLeitoras(app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa));
+        app(FotoDePessoa::class)->remover($pessoa);
+        $pessoa->forceFill(['biometria_autorizada_em' => null, 'biometria_autorizada_por' => null])->save();
+    }
+
+    /**
+     * @param  list<array{leitora: string, sucesso: bool, mensagem: string}>  $resultados
+     */
+    private function avisarLeitoras(array $resultados): void
+    {
+        $erros = array_filter($resultados, fn ($r) => ! $r['sucesso']);
+
+        if ($erros !== []) {
+            Flux::toast(variant: 'warning', duration: 15000, heading: __('A leitora facial não foi atualizada'),
+                text: collect($erros)->map(fn ($r) => "{$r['leitora']}: {$r['mensagem']}")->join(' | '));
+        }
     }
 
     private function buscar(int $id): Pessoa

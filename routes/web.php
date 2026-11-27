@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\EstadoAtualizacaoController;
+use App\Http\Controllers\FotoPessoaController;
 use App\Http\Controllers\TrocarCondominioController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,7 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('cadastros/pessoas', 'pages::cadastros.pessoas.index')->name('pessoas.index');
     Route::livewire('cadastros/pessoas/nova', 'pages::cadastros.pessoas.form')->name('pessoas.criar');
     Route::livewire('cadastros/pessoas/{pessoa}/editar', 'pages::cadastros.pessoas.form')->name('pessoas.editar');
+    Route::get('cadastros/pessoas/{pessoa}/foto', FotoPessoaController::class)->name('pessoas.foto');
 
     // Operação
     Route::livewire('abrir', 'pages::acessos.abrir')->name('acessos.abrir');
