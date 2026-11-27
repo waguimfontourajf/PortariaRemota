@@ -13,7 +13,7 @@ use function Laravel\Prompts\text;
 class TuyaChavesCommand extends Command
 {
     protected $signature = 'portaria:tuya-chaves
-        {--id= : Access ID do projeto em iot.tuya.com}
+        {--id= : Access ID do projeto em platform.tuya.com}
         {--secret= : Access Secret do projeto}
         {--regiao= : us (Américas), eu, cn, in, ueaz, weaz}
         {--aparelho= : Buscar só um aparelho pelo ID}';

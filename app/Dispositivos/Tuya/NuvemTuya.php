@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 /**
- * Acesso à API de nuvem da Tuya (iot.tuya.com), usado UMA VEZ para obter
+ * Acesso à API de nuvem da Tuya (platform.tuya.com), usado UMA VEZ para obter
  * o ID e a chave local (local_key) dos aparelhos. O controle do dia a dia
  * é feito pela rede local (driver TuyaLocal), sem nuvem.
  */

@@ -24,7 +24,7 @@ A Tuya só libera as chaves de aparelhos cadastrados nos apps **Smart Life** ou 
 
 ## 2. Criar o projeto na Tuya (gratuito)
 
-1. Acesse **https://iot.tuya.com** e crie uma conta de desenvolvedor.
+1. Acesse **https://platform.tuya.com** e crie uma conta de desenvolvedor.
 2. Vá em **Cloud → Development → Create Cloud Project**:
    - *Project Name*: Portaria Remota
    - *Industry*: Smart Home
