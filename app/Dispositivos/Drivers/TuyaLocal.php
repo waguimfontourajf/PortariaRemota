@@ -17,6 +17,14 @@ use App\Models\Dispositivo;
  */
 class TuyaLocal extends DriverBase
 {
+    /**
+     * Conversa técnica com o aparelho na última operação (exibida no teste
+     * da tela de cadastro, para diagnóstico).
+     *
+     * @var list<string>
+     */
+    private array $registro = [];
+
     public static function chave(): string
     {
         return 'tuya_local';
@@ -124,22 +132,66 @@ class TuyaLocal extends DriverBase
             return $resultado;
         }
 
-        $dps = json_encode($resultado->dados['dps'] ?? [], JSON_UNESCAPED_SLASHES);
+        $lista = (array) ($resultado->dados['dps'] ?? []);
+        $dps = json_encode($lista, JSON_UNESCAPED_SLASHES);
+        $configurados = array_values(array_filter(array_map('trim', explode(',', (string) $dispositivo->opcao('dps', '1')))));
+        $faltando = $lista === [] ? [] : array_values(array_filter($configurados, fn ($dp) => ! array_key_exists($dp, $lista)));
+        $aviso = $faltando === [] ? '' : ' ATENÇÃO: o aparelho não tem o(s) data point(s) '.implode(', ', $faltando).' configurado(s) em "Data points dos canais"; Ligar/Desligar não vão funcionar.';
 
-        return Resultado::ok("Aparelho respondeu. Data points: {$dps}", $resultado->ligado, $resultado->dados)->comDuracao($resultado->duracaoMs);
+        return Resultado::ok("Aparelho respondeu. Data points: {$dps}{$aviso}", $resultado->ligado, $resultado->dados)->comDuracao($resultado->duracaoMs);
     }
 
+    protected function executar(\Closure $acao): Resultado
+    {
+        $this->registro = [];
+        $resultado = parent::executar($acao);
+
+        if ($this->registro === []) {
+            return $resultado;
+        }
+
+        return new Resultado(
+            $resultado->sucesso, $resultado->mensagem, $resultado->ligado,
+            [...$resultado->dados, 'registro' => $this->registro], $resultado->duracaoMs,
+        );
+    }
+
+    /**
+     * Envia o comando e depois CONSULTA o aparelho para confirmar o estado
+     * real (o aparelho pode aceitar o comando e não executar).
+     */
     private function definir(Dispositivo $dispositivo, int $canal, bool $ligado): Resultado
     {
         $cliente = $this->cliente($dispositivo);
+        $dp = $this->dp($dispositivo, $canal);
 
         try {
-            $cliente->definir([$this->dp($dispositivo, $canal) => $ligado]);
+            $cliente->definir([$dp => $ligado]);
+            usleep(300_000);
+            $dps = $cliente->consultar();
         } finally {
             $cliente->fechar();
         }
 
-        return Resultado::ok($ligado ? 'Ligado.' : 'Desligado.', $ligado);
+        $dpsTexto = json_encode($dps, JSON_UNESCAPED_SLASHES);
+
+        if ($dps !== [] && ! array_key_exists($dp, $dps)) {
+            return Resultado::falha(
+                "Este aparelho não tem o data point {$dp}, então o comando foi ignorado. Confira o campo \"Data points dos canais\" (os que ele tem: ".implode(', ', array_keys($dps)).'). Data points: '.$dpsTexto,
+                ['dps' => $dps],
+            );
+        }
+
+        $real = array_key_exists($dp, $dps) ? (bool) $dps[$dp] : null;
+
+        if ($real !== null && $real !== $ligado) {
+            return Resultado::falha(
+                'O aparelho recebeu o comando, mas não mudou: continua '.($real ? 'LIGADO' : 'desligado').". Data points: {$dpsTexto}",
+                ['dps' => $dps],
+            );
+        }
+
+        return Resultado::ok(($ligado ? 'Ligado' : 'Desligado').' (confirmado pelo aparelho).', $real ?? $ligado, ['dps' => $dps]);
     }
 
     /**
@@ -151,7 +203,7 @@ class TuyaLocal extends DriverBase
             throw new ExcecaoDeComunicacao('Endereço (IP) do aparelho não configurado.');
         }
 
-        return new ClienteTuya(
+        $cliente = new ClienteTuya(
             host: $dispositivo->host,
             idDispositivo: (string) $dispositivo->opcao('device_id', ''),
             chaveLocal: (string) $dispositivo->opcao('local_key', ''),
@@ -159,6 +211,10 @@ class TuyaLocal extends DriverBase
             porta: $dispositivo->porta ?: 6668,
             timeout: $this->timeout($dispositivo),
         );
+
+        return $cliente->aoDiagnosticar(function (string $linha) {
+            $this->registro[] = '['.date('H:i:s').'] '.$linha;
+        });
     }
 
     private function dp(Dispositivo $dispositivo, int $canal): string
