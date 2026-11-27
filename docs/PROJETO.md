@@ -111,7 +111,7 @@ No cadastro do dispositivo, um **combo box** lista os drivers. Ao escolher um, o
 | 4 | **eWeLink / Sonoff** | modo LAN + nuvem | |
 | 5 | **Tasmota** (Sonoff reflashado e similares) | HTTP + MQTT | |
 | 6 | **MQTT genérico** | tópico e payload configuráveis | |
-| 7 | **Modbus TCP** | placas de 4/8/16 canais | painéis maiores |
+| 7 | **Modbus TCP** ✅ | Modbus TCP ou RTU sobre TCP (eletechsup ETR0A01/ETR0B02 e similares) | cabeado, 12/24 V DC, pulso controlado pelo módulo. Guia: `docs/MODBUS.md` |
 | 8 | **ESP32/ESP8266 próprio** (firmware nosso) | HTTP + MQTT | opção mais barata em escala |
 | — | Futuro: controladoras de acesso (Control iD, Intelbras, Hikvision) | API do fabricante | facial, tag, cartão |
 

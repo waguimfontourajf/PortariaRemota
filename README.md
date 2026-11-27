@@ -130,7 +130,8 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `app/Http/Middleware/` | Condomínio atual, 2FA obrigatório e bloqueio de usuário inativo |
 | `config/portaria.php` | Configurações próprias do sistema |
 | `lang/pt_BR*` | Traduções |
-| `app/Dispositivos/` | Drivers de relé (Shelly, Tuya, HTTP genérico, simulador) e protocolo Tuya |
+| `app/Dispositivos/` | Drivers de relé (Shelly, Tuya, Modbus, HTTP genérico, simulador) e protocolos Tuya/Modbus |
 | `app/Acoes/AcionarPontoDeAcesso.php` | Único caminho para abrir um portão (permissão, trava, histórico) |
 | `docs/PROJETO.md` | Documento do projeto |
 | `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |
+| `docs/MODBUS.md` | Módulos de relé Modbus com porta de rede (eletechsup e similares) |

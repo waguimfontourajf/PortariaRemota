@@ -1,6 +1,7 @@
 <?php
 
 use App\Dispositivos\Drivers\HttpGenerico;
+use App\Dispositivos\Drivers\ModbusRele;
 use App\Dispositivos\Drivers\Shelly;
 use App\Dispositivos\Drivers\Simulador;
 use App\Dispositivos\Drivers\TuyaLocal;
@@ -60,6 +61,7 @@ return [
         'reles' => [
             Shelly::class,
             TuyaLocal::class,
+            ModbusRele::class,
             HttpGenerico::class,
             Simulador::class,
         ],
