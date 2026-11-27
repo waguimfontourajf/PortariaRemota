@@ -11,7 +11,7 @@ use RuntimeException;
  * Atualização do sistema pelo painel.
  *
  * O PHP NUNCA executa git/composer/npm diretamente: ele apenas pede ao
- * Windows para rodar a tarefa agendada "PortariaRemota\Atualizar", que
+ * Windows para rodar a tarefa agendada "PortariaRemota-Atualizar", que
  * executa implantacao\atualizar.bat com o usuário que a criou.
  */
 class AtualizacaoDoSistema

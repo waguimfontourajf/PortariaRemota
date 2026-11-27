@@ -131,7 +131,7 @@ Quem acessar recebe um código por e-mail antes de ver a tela de login. Quando o
 implantacao\instalar-atualizacao-pelo-painel.bat
 ```
 
-Esse script cria a tarefa agendada do Windows **PortariaRemota\Atualizar** e guarda o caminho do php, composer, node e git.
+Esse script cria a tarefa agendada do Windows **PortariaRemota-Atualizar** e guarda o caminho do php, composer, node e git.
 
 Daí em diante, para atualizar: **Administração → Atualizar sistema → Atualizar agora**.
 - Só aparece para o super admin e pede a senha de novo.

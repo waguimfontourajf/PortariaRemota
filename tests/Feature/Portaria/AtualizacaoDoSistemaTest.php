@@ -67,7 +67,7 @@ class AtualizacaoDoSistemaTest extends CadastrosTestCase
             ->call('atualizar')
             ->assertDispatched('atualizacao-iniciada');
 
-        Process::assertRan(fn ($p) => $p->command === ['schtasks', '/run', '/tn', 'PortariaRemota\\Atualizar']);
+        Process::assertRan(fn ($p) => $p->command === ['schtasks', '/run', '/tn', 'PortariaRemota-Atualizar']);
         $this->assertSame('executando', trim(File::get(storage_path('app/atualizacao/estado.txt'))));
         $this->assertDatabaseHas('activity_log', ['log_name' => 'sistema']);
     }

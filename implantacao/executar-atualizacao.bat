@@ -1,6 +1,6 @@
 @echo off
 REM ==========================================================
-REM  Executado pela tarefa agendada "PortariaRemota\Atualizar"
+REM  Executado pela tarefa agendada "PortariaRemota-Atualizar"
 REM  (botao "Atualizar sistema" do painel). Nao precisa rodar a mao.
 REM
 REM  Roda uma COPIA do atualizar.bat: o git pull pode alterar o

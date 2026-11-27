@@ -92,7 +92,7 @@ return [
     */
 
     'atualizacao' => [
-        'tarefa' => env('PORTARIA_ATUALIZACAO_TAREFA', 'PortariaRemota\\Atualizar'),
+        'tarefa' => env('PORTARIA_ATUALIZACAO_TAREFA', 'PortariaRemota-Atualizar'),
         // null = automático (habilitada somente no Windows)
         'habilitada' => env('PORTARIA_ATUALIZACAO_PAINEL'),
         // Depois desse tempo, uma atualização "executando" é considerada travada.

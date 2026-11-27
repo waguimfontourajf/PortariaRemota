@@ -9,7 +9,7 @@ REM
 REM  O que faz:
 REM   1. Salva o PATH atual em implantacao\ambiente.local.bat, para
 REM      a atualizacao encontrar php/composer/node/git.
-REM   2. Cria a tarefa agendada do Windows "PortariaRemota\Atualizar",
+REM   2. Cria a tarefa agendada do Windows "PortariaRemota-Atualizar",
 REM      que roda implantacao\executar-atualizacao.bat com o SEU usuario.
 REM      O painel apenas pede ao Windows para executar essa tarefa.
 REM ==========================================================
@@ -33,11 +33,14 @@ REM o Apache (mesmo usuario, sem elevacao) consegue consultar e iniciar a tarefa
 REM O aviso "/ST e anterior a hora atual" e normal: a tarefa so roda pelo painel.
 REM O registro (log) e feito pelo executar-atualizacao.bat: assim o /tr
 REM nao tem ">" (o cmd interpretaria como redirecionamento DESTE script).
-schtasks /create /f /tn "PortariaRemota\Atualizar" /sc once /sd 01/01/2000 /st 00:00 /it /tr "\"%PROJETO%\implantacao\executar-atualizacao.bat\""
-schtasks /query /tn "PortariaRemota\Atualizar" >nul 2>&1
+REM Na raiz do Agendador (sem pasta): criar pastas exige administrador.
+REM Remove a tarefa da versao anterior, se existir (ignora erro).
+schtasks /delete /f /tn "PortariaRemota\Atualizar" >nul 2>&1
+schtasks /create /f /tn "PortariaRemota-Atualizar" /sc once /sd 01/01/2000 /st 00:00 /it /tr "\"%PROJETO%\implantacao\executar-atualizacao.bat\""
+schtasks /query /tn "PortariaRemota-Atualizar" >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo ERRO ao criar a tarefa. Rode pelo Terminal do Laragon NORMAL (sem "Executar como administrador"),
+    echo ERRO ao criar a tarefa. Rode pelo Terminal do Laragon NORMAL, sem "Executar como administrador",
     echo com o mesmo usuario que fica logado no Windows do servidor.
     exit /b 1
 )
