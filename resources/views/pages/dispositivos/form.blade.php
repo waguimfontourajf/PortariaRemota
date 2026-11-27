@@ -239,7 +239,8 @@ new class extends Component {
         </x-slot:acoes>
     </x-cabecalho-pagina>
 
-    <form wire:submit="salvar" class="space-y-8">
+    {{-- autocomplete off: impede o navegador de colocar o e-mail/senha do usuário nos campos do equipamento --}}
+    <form wire:submit="salvar" class="space-y-8" autocomplete="off">
         <flux:fieldset>
             <flux:legend>{{ __('Equipamento') }}</flux:legend>
             <div class="grid gap-4 sm:grid-cols-2">
@@ -252,7 +253,7 @@ new class extends Component {
                     </flux:select>
                 </div>
                 @if ($this->classe::usaHost())
-                    <flux:input wire:model="host" :label="__('Endereço (IP)')" placeholder="192.168.0.50" class="font-mono" required />
+                    <flux:input wire:model="host" :label="__('Endereço (IP)')" placeholder="192.168.0.50" class="font-mono" autocomplete="off" required />
                     <flux:input wire:model="porta" type="number" :label="__('Porta')" :placeholder="(string) $this->classe::portaPadrao()" />
                 @endif
                 <flux:input wire:model="canais" type="number" min="1" :max="$this->classe::maximoDeCanais()" :label="__('Quantidade de canais (relés)')" />
@@ -281,11 +282,11 @@ new class extends Component {
                                 @case('senha')
                                     <flux:input type="password" viewable wire:model="config.{{ $campo->nome }}" :label="$campo->rotulo"
                                         :placeholder="$salvo ? __('•••••••• (salva — deixe em branco para manter)') : $campo->placeholder"
-                                        :description:trailing="$campo->ajuda" autocomplete="off" />
+                                        :description:trailing="$campo->ajuda" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
                                     @break
                                 @default
                                     <flux:input wire:model="config.{{ $campo->nome }}" :type="$campo->tipo === 'numero' ? 'number' : 'text'"
-                                        :label="$campo->rotulo" :placeholder="$campo->placeholder" :description:trailing="$campo->ajuda" />
+                                        :label="$campo->rotulo" :placeholder="$campo->placeholder" :description:trailing="$campo->ajuda" autocomplete="off" data-1p-ignore data-lpignore="true" />
                             @endswitch
                         </div>
                     @endforeach
