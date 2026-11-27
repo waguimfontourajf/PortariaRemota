@@ -162,6 +162,7 @@ new class extends Component {
             'duracao' => $resultado->duracaoMs,
             'acao' => $acao,
             'canal' => $canal,
+            'registro' => $resultado->dados['registro'] ?? [],
         ];
     }
 
@@ -316,6 +317,13 @@ new class extends Component {
                         @endif
                     </flux:callout.text>
                 </flux:callout>
+
+                @if (! empty($ultimoTeste['registro']))
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-sm text-zinc-500">{{ __('Detalhes técnicos (conversa com o aparelho)') }}</summary>
+                        <pre class="mt-2 max-h-80 overflow-auto rounded-lg bg-zinc-100 p-3 text-xs whitespace-pre-wrap break-all dark:bg-zinc-900">{{ implode("\n", $ultimoTeste['registro']) }}</pre>
+                    </details>
+                @endif
             @endif
         </flux:fieldset>
 
