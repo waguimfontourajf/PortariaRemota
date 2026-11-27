@@ -132,9 +132,13 @@ class TuyaLocal extends DriverBase
             return $resultado;
         }
 
-        $dps = json_encode($resultado->dados['dps'] ?? [], JSON_UNESCAPED_SLASHES);
+        $lista = (array) ($resultado->dados['dps'] ?? []);
+        $dps = json_encode($lista, JSON_UNESCAPED_SLASHES);
+        $configurados = array_values(array_filter(array_map('trim', explode(',', (string) $dispositivo->opcao('dps', '1')))));
+        $faltando = $lista === [] ? [] : array_values(array_filter($configurados, fn ($dp) => ! array_key_exists($dp, $lista)));
+        $aviso = $faltando === [] ? '' : ' ATENÇÃO: o aparelho não tem o(s) data point(s) '.implode(', ', $faltando).' configurado(s) em "Data points dos canais"; Ligar/Desligar não vão funcionar.';
 
-        return Resultado::ok("Aparelho respondeu. Data points: {$dps}", $resultado->ligado, $resultado->dados)->comDuracao($resultado->duracaoMs);
+        return Resultado::ok("Aparelho respondeu. Data points: {$dps}{$aviso}", $resultado->ligado, $resultado->dados)->comDuracao($resultado->duracaoMs);
     }
 
     protected function executar(\Closure $acao): Resultado
@@ -169,8 +173,16 @@ class TuyaLocal extends DriverBase
             $cliente->fechar();
         }
 
-        $real = array_key_exists($dp, $dps) ? (bool) $dps[$dp] : null;
         $dpsTexto = json_encode($dps, JSON_UNESCAPED_SLASHES);
+
+        if ($dps !== [] && ! array_key_exists($dp, $dps)) {
+            return Resultado::falha(
+                "Este aparelho não tem o data point {$dp}, então o comando foi ignorado. Confira o campo \"Data points dos canais\" (os que ele tem: ".implode(', ', array_keys($dps)).'). Data points: '.$dpsTexto,
+                ['dps' => $dps],
+            );
+        }
+
+        $real = array_key_exists($dp, $dps) ? (bool) $dps[$dp] : null;
 
         if ($real !== null && $real !== $ligado) {
             return Resultado::falha(
