@@ -50,6 +50,7 @@ php artisan portaria:tuya-chaves
 Informe o Access ID, o Access Secret e a região (**us**). O sistema mostra uma tabela com **nome, ID e chave local** de cada aparelho. Guarde em local seguro.
 
 > Se aparecer o erro **28841105** ou **2009**, a região está errada. Tente `ueaz` ou `eu`.
+> Se aparecer o erro **28841107** (*data center is suspended*), ative o plano gratuito do IoT Core: **Cloud → Cloud Services → IoT Core → Trial/Free**. Depois confira, em **Development → projeto → Service API**, se o IoT Core está *In service*.
 > Se aparecer o erro **1106**, o app não foi vinculado (passo 3) ou falta autorizar o *IoT Core*.
 
 ## 5. Descobrir IP e versão do protocolo

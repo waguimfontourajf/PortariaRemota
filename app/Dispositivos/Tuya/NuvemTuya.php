@@ -137,6 +137,7 @@ class NuvemTuya
                 1106 => ' (sem permissão: o app foi vinculado ao projeto? os serviços de API estão autorizados?)',
                 2009 => ' (região/data center errado: tente outra região)',
                 28841105 => ' (região/data center errado: tente outra região)',
+                28841107 => ' (o plano gratuito do IoT Core não está ativo: em platform.tuya.com, vá em Cloud > Cloud Services > IoT Core e ative a versão gratuita/Trial; depois confira em Development > projeto > Service API se o IoT Core está "In service")',
                 default => '',
             };
 
