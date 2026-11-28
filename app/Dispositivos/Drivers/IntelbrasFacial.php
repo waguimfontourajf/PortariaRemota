@@ -6,11 +6,11 @@ use App\Dispositivos\ExcecaoDeComunicacao;
 use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\Dispositivo;
 use App\Models\HorarioAcesso;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Carbon;
-use App\Models\Dispositivo;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Carbon;
 
 /**
  * Leitoras faciais Intelbras (linha Bio-T: SS 3530, SS 3532, SS 3540,

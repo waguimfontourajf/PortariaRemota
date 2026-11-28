@@ -7,10 +7,10 @@ use App\Dispositivos\ExcecaoDeComunicacao;
 use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\Dispositivo;
 use App\Models\HorarioAcesso;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use App\Models\Dispositivo;
 
 /**
  * Leitoras faciais Control iD (iDFace, iDFace Max) pela API de acesso.

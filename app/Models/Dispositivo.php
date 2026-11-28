@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Dispositivos\Contratos\DriverDeRele;
 use App\Dispositivos\RegistroDeDrivers;
+use App\Enums\MetodoMonitoramento;
+use App\Enums\StatusMonitoramento;
 use App\Enums\TipoDispositivo;
 use App\Models\Concerns\PertenceAoCondominio;
 use App\Models\Concerns\TemUuid;
@@ -36,7 +38,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $ultimo_erro
  * @property string|null $observacoes
  */
-#[Fillable(['nome', 'tipo', 'driver', 'host', 'porta', 'canais', 'config', 'ativo', 'observacoes'])]
+#[Fillable(['nome', 'tipo', 'driver', 'host', 'porta', 'mac', 'fabricante_modelo', 'canais', 'config', 'ativo', 'monitorar', 'metodo_monitoramento', 'porta_monitoramento', 'observacoes'])]
 #[Hidden(['config'])]
 class Dispositivo extends Model
 {
@@ -45,7 +47,7 @@ class Dispositivo extends Model
 
     protected $table = 'dispositivos';
 
-    protected $attributes = ['tipo' => 'rele', 'canais' => 1, 'ativo' => true];
+    protected $attributes = ['tipo' => 'rele', 'canais' => 1, 'ativo' => true, 'monitorar' => true, 'metodo_monitoramento' => 'ping', 'status' => 'desconhecido', 'falhas_seguidas' => 0];
 
     protected function casts(): array
     {
@@ -56,6 +58,16 @@ class Dispositivo extends Model
             'config' => 'encrypted:array',
             'ativo' => 'boolean',
             'online' => 'boolean',
+            'monitorar' => 'boolean',
+            'metodo_monitoramento' => MetodoMonitoramento::class,
+            'porta_monitoramento' => 'integer',
+            'status' => StatusMonitoramento::class,
+            'status_desde' => 'datetime',
+            'latencia_ms' => 'integer',
+            'falhas_seguidas' => 'integer',
+            'verificado_em' => 'datetime',
+            'mapa_x' => 'integer',
+            'mapa_y' => 'integer',
             'ultimo_contato_em' => 'datetime',
             'eventos_importados_em' => 'datetime',
         ];
@@ -67,6 +79,54 @@ class Dispositivo extends Model
     public function pontosAcesso(): HasMany
     {
         return $this->hasMany(PontoAcesso::class);
+    }
+
+    /**
+     * @return HasMany<QuedaDispositivo, $this>
+     */
+    public function quedas(): HasMany
+    {
+        return $this->hasMany(QuedaDispositivo::class);
+    }
+
+    public function temDriver(): bool
+    {
+        return filled($this->driver) && app(RegistroDeDrivers::class)->existe($this->driver);
+    }
+
+    /**
+     * Status considerando se o monitoramento está ligado.
+     */
+    public function statusEfetivo(): StatusMonitoramento
+    {
+        return $this->ativo && $this->monitorar && (filled($this->host) || $this->metodo_monitoramento === MetodoMonitoramento::Driver)
+            ? $this->status
+            : StatusMonitoramento::NaoMonitorado;
+    }
+
+    /**
+     * Percentual do tempo online no período (considera as quedas registradas).
+     */
+    public function disponibilidade(int $dias): ?float
+    {
+        $inicio = now()->subDays($dias);
+        $inicioReal = $this->created_at && $this->created_at->gt($inicio) ? $this->created_at : $inicio;
+        $total = now()->diffInSeconds($inicioReal, true);
+
+        if ($total < 60) {
+            return null;
+        }
+
+        $fora = $this->quedas()
+            ->where(fn ($q) => $q->whereNull('fim')->orWhere('fim', '>', $inicioReal))
+            ->get()
+            ->sum(function (QuedaDispositivo $queda) use ($inicioReal) {
+                $de = $queda->inicio->gt($inicioReal) ? $queda->inicio : $inicioReal;
+
+                return ($queda->fim ?? now())->diffInSeconds($de, true);
+            });
+
+        return round(max(0, 100 - ($fora / $total * 100)), 2);
     }
 
     public function driverDeRele(): DriverDeRele

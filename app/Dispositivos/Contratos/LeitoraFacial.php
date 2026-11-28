@@ -2,6 +2,7 @@
 
 namespace App\Dispositivos\Contratos;
 
+use App\Dispositivos\ExcecaoDeComunicacao;
 use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
@@ -39,7 +40,7 @@ interface LeitoraFacial
      *
      * @return array{passagens: list<PassagemNaLeitora>, cursor: ?string, mais: bool}
      *
-     * @throws \App\Dispositivos\ExcecaoDeComunicacao
+     * @throws ExcecaoDeComunicacao
      */
     public function buscarPassagens(Dispositivo $dispositivo, ?string $cursor, CarbonInterface $desde): array;
 }

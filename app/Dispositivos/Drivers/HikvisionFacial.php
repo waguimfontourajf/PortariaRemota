@@ -7,12 +7,12 @@ use App\Dispositivos\ExcecaoDeComunicacao;
 use App\Dispositivos\PassagemNaLeitora;
 use App\Dispositivos\RegrasDeAcesso;
 use App\Dispositivos\Resultado;
+use App\Models\Dispositivo;
 use App\Models\HorarioAcesso;
 use Carbon\CarbonInterface;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
-use App\Models\Dispositivo;
-use Illuminate\Http\Client\Response;
 
 /**
  * Leitoras faciais Hikvision (linha DS-K1T...) pela ISAPI, com Digest.

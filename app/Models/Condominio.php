@@ -41,7 +41,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 #[Fillable([
     'nome', 'cnpj', 'telefone', 'email',
     'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
-    'modo_operacao', 'fuso_horario', 'ativo', 'observacoes',
+    'modo_operacao', 'fuso_horario', 'ativo', 'observacoes', 'telegram_chat_id',
 ])]
 class Condominio extends Model
 {
@@ -61,6 +61,8 @@ class Condominio extends Model
         return [
             'modo_operacao' => ModoOperacao::class,
             'ativo' => 'boolean',
+            'mapa_x' => 'integer',
+            'mapa_y' => 'integer',
         ];
     }
 
@@ -125,6 +127,22 @@ class Condominio extends Model
     public function eventosAcesso(): HasMany
     {
         return $this->hasMany(EventoAcesso::class);
+    }
+
+    /**
+     * @return HasMany<LigacaoRede, $this>
+     */
+    public function ligacoesRede(): HasMany
+    {
+        return $this->hasMany(LigacaoRede::class);
+    }
+
+    /**
+     * @return HasMany<QuedaDispositivo, $this>
+     */
+    public function quedas(): HasMany
+    {
+        return $this->hasMany(QuedaDispositivo::class);
     }
 
     /**
