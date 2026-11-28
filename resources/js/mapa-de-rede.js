@@ -14,6 +14,7 @@ export default function mapaDeRede(config = {}) {
     return {
         nos: [],
         ligacoes: [],
+        monitor: null,
         carregado: false,
         podeEditar: !! config.podeEditar,
         permiteLigar: !! config.permiteLigar,
@@ -48,6 +49,7 @@ export default function mapaDeRede(config = {}) {
                 const d = await this.$wire.dados();
                 this.nos = d.nos;
                 this.ligacoes = d.ligacoes;
+                this.monitor = d.monitor ?? null;
                 this.carregado = true;
                 if (this.selecionado) {
                     const atual = this.no(this.selecionado.id);

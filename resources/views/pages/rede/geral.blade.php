@@ -72,7 +72,7 @@ new #[Title('Mapa geral')] class extends Component {
             $ligacoes[] = ['id' => 'vpn-'.$c->id, 'origem' => 'central', 'destino' => $c->id, 'tipo' => 'vpn', 'descricao' => null];
         }
 
-        return ['nos' => $nos, 'ligacoes' => $ligacoes];
+        return ['nos' => $nos, 'ligacoes' => $ligacoes, 'monitor' => \App\Monitoramento\Monitor::estadoDoAgendador()];
     }
 
     #[Renderless]

@@ -1,3 +1,13 @@
+{{-- Aviso: a verificação automática (agendador do Windows) não está rodando. --}}
+<template x-if="monitor && monitor.parado">
+    <div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" data-test="aviso-agendador">
+        <div class="font-semibold">{{ __('A verificação automática dos equipamentos não está rodando') }}</div>
+        <div class="mt-1" x-text="monitor.segundos === null ? @js(__('Ela nunca rodou neste servidor.')) : @js(__('Última verificação automática há')) + ' ' + Math.round(monitor.segundos / 60) + ' min.'"></div>
+        <div class="mt-1">{{ __('Por isso o mapa só muda quando alguém clica em "Testar agora". No servidor, abra o Terminal do Laragon na pasta do sistema e rode:') }}
+            <code class="rounded bg-amber-100 px-1 font-mono dark:bg-amber-900/60">implantacao\instalar-agendador.bat</code>
+        </div>
+    </div>
+</template>
 {{-- Área do mapa: grade, linhas (SVG) e nós arrastáveis. Usa o Alpine "mapaDeRede". --}}
 <div class="h-[70vh] min-h-[420px] overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/60"
     x-on:pointermove.window="arrastar($event)" x-on:pointerup.window="soltar()">

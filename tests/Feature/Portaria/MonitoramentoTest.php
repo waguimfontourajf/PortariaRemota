@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Monitoramento\Monitor;
 use App\Monitoramento\Verificador;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Livewire\Livewire;
@@ -156,6 +157,21 @@ class MonitoramentoTest extends CadastrosTestCase
         $dados = Livewire::test('pages::rede.mapa')->instance()->dados();
         $this->assertCount(2, $dados['nos']);
         $this->assertCount(1, $dados['ligacoes']);
+    }
+
+    public function test_mapa_avisa_quando_a_verificacao_automatica_nao_roda(): void
+    {
+        Cache::flush();
+        $this->roteador();
+        $this->entrarComo(User::factory()->superAdmin()->withTwoFactor()->create());
+
+        $this->assertSame(['segundos' => null, 'parado' => true], Livewire::test('pages::rede.mapa')->instance()->dados()['monitor']);
+
+        $this->artisan('portaria:monitorar')->assertSuccessful();
+        $this->assertFalse(Livewire::test('pages::rede.mapa')->instance()->dados()['monitor']['parado']);
+
+        $this->travel(5)->minutes();
+        $this->assertTrue(Livewire::test('pages::rede.mapa')->instance()->dados()['monitor']['parado']);
     }
 
     public function test_sindico_ve_o_mapa_mas_nao_altera(): void

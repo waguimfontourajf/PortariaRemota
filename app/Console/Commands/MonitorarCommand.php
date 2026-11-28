@@ -15,6 +15,7 @@ class MonitorarCommand extends Command
     {
         $inicio = microtime(true);
         $resumo = $monitor->executar($this->option('condominio') ? (int) $this->option('condominio') : null);
+        Monitor::registrarExecucao();
 
         $this->info(sprintf(
             '%d verificados em %.1f s: %d online, %d lentos, %d offline.',

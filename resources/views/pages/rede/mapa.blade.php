@@ -68,7 +68,7 @@ new #[Title('Mapa da rede')] class extends Component {
             'descricao' => $l->descricao,
         ])->all();
 
-        return ['nos' => $nos, 'ligacoes' => $ligacoes];
+        return ['nos' => $nos, 'ligacoes' => $ligacoes, 'monitor' => \App\Monitoramento\Monitor::estadoDoAgendador()];
     }
 
     #[Renderless]
