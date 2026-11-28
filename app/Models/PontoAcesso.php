@@ -29,6 +29,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ModoAcionamento $modo_acionamento
  * @property int $tempo_pulso_ms
  * @property bool $liberado_moradores
+ * @property bool $liberado_visitantes
  * @property bool $ativo
  * @property int $ordem
  * @property bool|null $ligado Último estado conhecido (liga / desliga)
@@ -36,7 +37,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $observacoes
  * @property-read Dispositivo|null $dispositivo
  */
-#[Fillable(['nome', 'tipo', 'dispositivo_id', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'ativo', 'ordem', 'observacoes'])]
+#[Fillable(['nome', 'tipo', 'dispositivo_id', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'ordem', 'observacoes'])]
 class PontoAcesso extends Model
 {
     /** @use HasFactory<PontoAcessoFactory> */
@@ -50,6 +51,7 @@ class PontoAcesso extends Model
         'modo_acionamento' => 'pulso',
         'tempo_pulso_ms' => 1000,
         'liberado_moradores' => false,
+        'liberado_visitantes' => false,
         'ativo' => true,
         'ordem' => 0,
     ];
@@ -62,6 +64,7 @@ class PontoAcesso extends Model
             'canal' => 'integer',
             'tempo_pulso_ms' => 'integer',
             'liberado_moradores' => 'boolean',
+            'liberado_visitantes' => 'boolean',
             'ativo' => 'boolean',
             'ordem' => 'integer',
             'ligado' => 'boolean',

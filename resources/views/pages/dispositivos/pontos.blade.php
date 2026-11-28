@@ -25,6 +25,7 @@ new #[Title('Pontos de acesso')] class extends Component {
     public string $modo_acionamento = 'pulso';
     public int $tempo_pulso_ms = 1000;
     public bool $liberado_moradores = false;
+    public bool $liberado_visitantes = false;
     public bool $ativo = true;
     public int $ordem = 0;
     public string $observacoes = '';
@@ -49,7 +50,7 @@ new #[Title('Pontos de acesso')] class extends Component {
     public function novo(): void
     {
         $this->exigirPermissao(Permissao::DispositivosGerenciar);
-        $this->reset('pontoId', 'nome', 'tipo', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'ativo', 'observacoes');
+        $this->reset('pontoId', 'nome', 'tipo', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'observacoes');
         $this->dispositivo_id = (string) ($this->dispositivos->first()?->id ?? '');
         $this->ordem = ($this->pontos->max('ordem') ?? 0) + 1;
         $this->resetValidation();
@@ -68,6 +69,7 @@ new #[Title('Pontos de acesso')] class extends Component {
             'modo_acionamento' => $ponto->modo_acionamento->value,
             'tempo_pulso_ms' => $ponto->tempo_pulso_ms,
             'liberado_moradores' => $ponto->liberado_moradores,
+            'liberado_visitantes' => $ponto->liberado_visitantes,
             'ativo' => $ponto->ativo,
             'ordem' => $ponto->ordem,
             'observacoes' => (string) $ponto->observacoes,
@@ -90,6 +92,7 @@ new #[Title('Pontos de acesso')] class extends Component {
             'modo_acionamento' => ['required', Rule::enum(ModoAcionamento::class)],
             'tempo_pulso_ms' => ['required', 'integer', 'min:'.config('portaria.acionamento.pulso_minimo_ms'), 'max:'.config('portaria.acionamento.pulso_maximo_ms')],
             'liberado_moradores' => ['boolean'],
+            'liberado_visitantes' => ['boolean'],
             'ativo' => ['boolean'],
             'ordem' => ['integer', 'min:0', 'max:999'],
             'observacoes' => ['nullable', 'string', 'max:1000'],
@@ -206,6 +209,7 @@ new #[Title('Pontos de acesso')] class extends Component {
                 @endif
                 <div class="sm:col-span-2 space-y-3">
                     <flux:switch wire:model="liberado_moradores" :label="__('Moradores podem abrir')" :description="__('Se desligado, apenas operadores, porteiros e síndico abrem.')" />
+                    <flux:switch wire:model="liberado_visitantes" :label="__('Visitantes podem abrir (link do morador)')" :description="__('Só para acionamento por pulso. Deixe desligado em garagens, se preferir.')" />
                     <flux:switch wire:model="ativo" :label="__('Ativo')" />
                 </div>
             </div>

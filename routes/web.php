@@ -4,12 +4,30 @@ use App\Http\Controllers\EstadoAtualizacaoController;
 use App\Http\Controllers\FotoPessoaController;
 use App\Http\Controllers\NovidadesController;
 use App\Http\Controllers\TrocarCondominioController;
+use App\Http\Controllers\VisitanteController;
+use App\Support\RegrasDeAcesso;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/painel')->name('home');
 
+// Link do visitante (público, sem login): quem tem o link tem a autorização.
+Route::middleware('throttle:30,1')->group(function () {
+    Route::get('v/{token}', [VisitanteController::class, 'mostrar'])->where('token', '[A-Za-z0-9]{32}')->name('visitante.mostrar');
+    Route::post('v/{token}/abrir/{ponto}', [VisitanteController::class, 'abrir'])->where('token', '[A-Za-z0-9]{32}')
+        ->middleware('throttle:6,1')->name('visitante.abrir');
+});
+
 Route::middleware(['auth'])->group(function () {
-    Route::view('painel', 'dashboard')->name('dashboard');
+    // Morador (só morador) cai direto na tela de abrir, como num app.
+    Route::get('painel', function () {
+        $usuario = auth()->user();
+
+        if (! $usuario->isSuperAdmin() && ! RegrasDeAcesso::temPerfilOperacionalEmAlgum($usuario) && $usuario->condominios()->exists()) {
+            return redirect()->route('acessos.abrir');
+        }
+
+        return view('dashboard');
+    })->name('dashboard');
 
     // Tempo real: as telas perguntam "tem novidade?" a cada poucos segundos.
     Route::get('novidades', NovidadesController::class)->name('novidades');
@@ -33,6 +51,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Operação
     Route::livewire('abrir', 'pages::acessos.abrir')->name('acessos.abrir');
+    Route::livewire('visitas', 'pages::visitas.index')->name('visitas.index');
+    Route::livewire('visitas/nova', 'pages::visitas.form')->name('visitas.criar');
+    Route::livewire('visitas/{visita}', 'pages::visitas.ver')->name('visitas.ver');
     Route::livewire('historico', 'pages::acessos.historico')->name('acessos.historico');
 
     // Equipamentos (configuração técnica: super admin)

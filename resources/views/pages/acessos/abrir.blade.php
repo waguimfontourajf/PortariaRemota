@@ -112,6 +112,8 @@ new #[Title('Abrir')] class extends Component {
 }; ?>
 
 <section class="w-full" x-on:tempo-real-acessos.window="$wire.$refresh()">
+    <x-convite-instalar />
+
     <x-cabecalho-pagina :titulo="__('Abrir')" :subtitulo="$this->condominio()->nome" />
 
     @if ($this->pontos->isEmpty())

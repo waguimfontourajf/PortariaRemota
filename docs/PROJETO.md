@@ -247,7 +247,7 @@ Todas as tabelas importantes têm `uuid`, porque é isso que permite sincronizar
 | **1. Cadastros** ✅ | condomínios, blocos, unidades, pessoas, usuários | navegador |
 | **2. Relés + pontos de acesso** ✅ | drivers HTTP genérico, Shelly e Tuya; botão ABRIR; histórico | **bancada (bocal + Shelly)** |
 | **3. Tempo real** ✅ | consulta leve a cada 3 s (sem servidor extra), acessos e quedas ao vivo, mapa da rede e alertas no Telegram | bancada |
-| **4. PWA do morador** | app instalável, abrir, visitantes, histórico | celular |
+| **4. PWA do morador** ✅ | app instalável, abrir, visitantes, histórico | celular |
 | **5. Câmeras** | go2rtc, câmeras no painel e no app | câmera IP de teste |
 | **6. Interfone e central** | Asterisk, softphone no navegador, pop-up de chamada | ATA ou interfone IP de teste |
 | 🎯 **Marco: demonstração** | apresentação no seu condomínio | |

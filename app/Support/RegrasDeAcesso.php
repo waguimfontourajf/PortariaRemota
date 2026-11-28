@@ -39,6 +39,17 @@ final class RegrasDeAcesso
         });
     }
 
+    /**
+     * Tem perfil além de morador em algum condomínio (síndico, porteiro, operador)?
+     */
+    public static function temPerfilOperacionalEmAlgum(User $usuario): bool
+    {
+        return $usuario->temAlgumPerfil(array_values(array_map(
+            fn (Perfil $p) => $p->value,
+            array_filter(Perfil::cases(), fn (Perfil $p) => $p !== Perfil::Morador),
+        )));
+    }
+
     public static function temPerfilOperacional(User $usuario, Condominio $condominio): bool
     {
         return collect($usuario->perfisNo($condominio))->contains(fn (Perfil $p) => $p !== Perfil::Morador);

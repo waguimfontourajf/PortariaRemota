@@ -11,8 +11,10 @@ use App\Models\EventoAcesso;
 use App\Models\Pessoa;
 use App\Models\PontoAcesso;
 use App\Models\User;
+use App\Models\Visita;
 use App\Support\RegrasDeAcesso;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Abre um ponto de acesso (portão, porta...) e registra no histórico.
@@ -24,6 +26,8 @@ class AcionarPontoDeAcesso
 {
     private AcaoEvento $acao = AcaoEvento::Abrir;
 
+    private ?Visita $visita = null;
+
     /**
      * @param  bool|null  $ligar  Para pontos "liga / desliga": true = ligar, false = desligar,
      *                            null = inverter o estado atual (consulta o aparelho).
@@ -34,10 +38,61 @@ class AcionarPontoDeAcesso
             ? ($ligar === null ? AcaoEvento::Abrir : ($ligar ? AcaoEvento::Ligar : AcaoEvento::Desligar))
             : AcaoEvento::Abrir;
 
+        $this->visita = null;
+
         if (! RegrasDeAcesso::podeAbrir($usuario, $ponto)) {
             return $this->registrar($ponto, $usuario, $origem, $ip, ResultadoEvento::Negado, 'Usuário sem permissão para abrir este ponto.');
         }
 
+        return $this->acionar($ponto, $usuario, $origem, $ip, $ligar);
+    }
+
+    /**
+     * Abertura feita por um visitante, pelo link que o morador enviou.
+     * Cada abertura bem-sucedida consome um uso da autorização.
+     */
+    public function porVisitante(PontoAcesso $ponto, Visita $visita, ?string $ip = null): EventoAcesso
+    {
+        $this->acao = AcaoEvento::Abrir;
+        $this->visita = $visita;
+
+        $permitido = $ponto->condominio_id === $visita->condominio_id
+            && $ponto->liberado_visitantes
+            && ! $ponto->ehLigaDesliga()
+            && $visita->pontos()->whereKey($ponto->id)->exists();
+
+        if (! $permitido) {
+            return $this->registrar($ponto, null, OrigemEvento::Visitante, $ip, ResultadoEvento::Negado, 'Este ponto não está liberado para esta autorização de visitante.');
+        }
+
+        // Reserva um uso de forma atômica (dois toques ao mesmo tempo não passam do limite).
+        $bloqueio = DB::transaction(function () use ($visita) {
+            $atual = Visita::query()->lockForUpdate()->findOrFail($visita->id);
+            $motivo = $atual->bloqueio();
+
+            if ($motivo === null) {
+                $atual->increment('usos');
+            }
+
+            return $motivo;
+        });
+
+        if ($bloqueio !== null) {
+            return $this->registrar($ponto, null, OrigemEvento::Visitante, $ip, ResultadoEvento::Negado, $bloqueio);
+        }
+
+        $evento = $this->acionar($ponto, null, OrigemEvento::Visitante, $ip, null);
+
+        // Se o portão não abriu, devolve o uso para o visitante tentar de novo.
+        if ($evento->resultado !== ResultadoEvento::Sucesso) {
+            Visita::query()->whereKey($visita->id)->where('usos', '>', 0)->decrement('usos');
+        }
+
+        return $evento;
+    }
+
+    private function acionar(PontoAcesso $ponto, ?User $usuario, OrigemEvento $origem, ?string $ip, ?bool $ligar): EventoAcesso
+    {
         $dispositivo = $ponto->dispositivo;
 
         if (! $ponto->ativo) {
@@ -103,6 +158,10 @@ class AcionarPontoDeAcesso
             ? Pessoa::query()->doCondominio($ponto->condominio_id)->where('user_id', $usuario->id)->value('id')
             : null;
 
+        $nome = $this->visita
+            ? 'Visitante: '.$this->visita->nome.($this->visita->autor ? ' (autorizado por '.$this->visita->autor->name.')' : '')
+            : $usuario?->name;
+
         return EventoAcesso::create([
             'condominio_id' => $ponto->condominio_id,
             'ponto_acesso_id' => $ponto->id,
@@ -110,7 +169,8 @@ class AcionarPontoDeAcesso
             'user_id' => $usuario?->id,
             'pessoa_id' => $pessoaId,
             'ponto_nome' => $ponto->nome,
-            'usuario_nome' => $usuario?->name,
+            'usuario_nome' => mb_substr((string) $nome, 0, 255) ?: null,
+            'visita_id' => $this->visita?->id,
             'origem' => $origem,
             'acao' => $this->acao,
             'resultado' => $resultado,

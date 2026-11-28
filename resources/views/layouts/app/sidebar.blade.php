@@ -22,6 +22,11 @@
                             {{ __('Abrir') }}
                         </flux:sidebar.item>
                     @endif
+                    @if ($condominioAtual && (auth()->user()->can(\App\Enums\Permissao::VisitasAutorizar->value) || auth()->user()->can(\App\Enums\Permissao::HistoricoVer->value)))
+                        <flux:sidebar.item icon="qr-code" :href="route('visitas.index')" :current="request()->routeIs('visitas.*')" wire:navigate>
+                            {{ __('Visitantes') }}
+                        </flux:sidebar.item>
+                    @endif
                     @if (auth()->user()->ehEquipeDaCentral())
                         <flux:sidebar.item icon="globe-americas" :href="route('rede.geral')" :current="request()->routeIs('rede.geral')" wire:navigate>
                             {{ __('Mapa geral') }}

@@ -137,6 +137,7 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `app/Acoes/AcionarPontoDeAcesso.php` | Único caminho para abrir um portão (permissão, trava, histórico) |
 | `docs/PROJETO.md` | Documento do projeto |
 | `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |
+| `docs/APP.md` | App no celular (PWA) e autorização de visitantes |
 | `docs/MONITORAMENTO.md` | Mapa da rede, monitoramento e alertas do Telegram |
 | `resources/js/tempo-real.js` + `NovidadesController` | Tempo real: as telas perguntam "tem novidade?" a cada 3 s |
 | `app/Monitoramento/` | Testes (ping/TCP/driver), regras de queda e volta |

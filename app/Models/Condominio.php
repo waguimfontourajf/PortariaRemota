@@ -138,6 +138,14 @@ class Condominio extends Model
     }
 
     /**
+     * @return HasMany<Visita, $this>
+     */
+    public function visitas(): HasMany
+    {
+        return $this->hasMany(Visita::class);
+    }
+
+    /**
      * @return HasMany<QuedaDispositivo, $this>
      */
     public function quedas(): HasMany

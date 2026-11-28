@@ -6,6 +6,7 @@ use App\Enums\Permissao;
 use App\Enums\ResultadoEvento;
 use App\Models\EventoAcesso;
 use App\Models\QuedaDispositivo;
+use App\Models\Visita;
 use App\Support\CondominioAtual;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,7 +51,10 @@ class NovidadesController extends Controller
                 $eventos = EventoAcesso::query()
                     ->doCondominio($condominio)
                     ->whereBetween('id', [$desdeEvento + 1, $maxEvento])
-                    ->unless($verTudo, fn ($q) => $q->where('user_id', $usuario->id))
+                    ->unless($verTudo, fn ($q) => $q->where(fn ($q) => $q
+                        ->where('user_id', $usuario->id)
+                        ->orWhereIn('visita_id', Visita::query()->select('id')->where('user_id', $usuario->id))))
+                    ->with('visita:id,user_id,nome')
                     ->orderBy('id')
                     ->limit(self::LIMITE)
                     ->get()
@@ -66,7 +70,9 @@ class NovidadesController extends Controller
                         'detalhe' => $e->detalhe,
                         'hora' => $e->created_at->timezone($fuso)->format('H:i:s'),
                         // Aviso na tela só para falhas de OUTRAS pessoas (quem clicou já vê o resultado).
-                        'alerta' => $e->user_id !== $usuario->id && in_array($e->resultado, [ResultadoEvento::Falha, ResultadoEvento::Negado], true),
+                        'alerta' => $e->user_id !== $usuario->id && $e->visita?->user_id !== $usuario->id && in_array($e->resultado, [ResultadoEvento::Falha, ResultadoEvento::Negado], true),
+                        // Entrada de um visitante que ESTE usuário autorizou.
+                        'meu_visitante' => $e->visita && $e->visita->user_id === $usuario->id ? $e->visita->nome : null,
                     ])
                     ->all();
             }

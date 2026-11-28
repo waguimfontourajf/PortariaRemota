@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#18181b">
+<title>Sem conexão — Portaria Remota</title>
+<style>
+  :root { color-scheme: light dark; --fundo:#ffffff; --texto:#18181b; --suave:#71717a; --botao:#18181b; --botao-texto:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --fundo:#18181b; --texto:#fafafa; --suave:#a1a1aa; --botao:#fafafa; --botao-texto:#18181b; } }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--fundo); color:var(--texto);
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding:24px; box-sizing:border-box; text-align:center; }
+  img { width:72px; height:72px; border-radius:16px; }
+  h1 { font-size:1.35rem; margin:20px 0 8px; }
+  p { color:var(--suave); max-width:22rem; line-height:1.5; margin:0 auto; }
+  button { margin-top:24px; border:0; border-radius:12px; padding:14px 28px; font-size:1rem; font-weight:600; background:var(--botao); color:var(--botao-texto); }
+</style>
+</head>
+<body>
+  <main>
+    <img src="/icones/icone-192.png" alt="">
+    <h1>Sem conexão com a internet</h1>
+    <p>Não foi possível falar com a portaria. Confira o Wi-Fi ou os dados móveis do celular e tente de novo.</p>
+    <p style="margin-top:12px">Em uma emergência, use o interfone ou fale com a portaria.</p>
+    <button onclick="location.reload()">Tentar de novo</button>
+  </main>
+</body>
+</html>

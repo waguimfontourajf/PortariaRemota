@@ -54,7 +54,9 @@ class DoisFatoresObrigatorioTest extends TestCase
         $morador = User::factory()->create();
         $morador->atribuirPerfil(Perfil::Morador, $condominio);
 
-        $this->actingAs($morador)->get(route('dashboard'))->assertOk();
+        // Morador vai direto para "Abrir" (sem pedir 2FA).
+        $this->actingAs($morador)->get(route('dashboard'))->assertRedirect(route('acessos.abrir'));
+        $this->get(route('acessos.abrir'))->assertOk();
     }
 
     public function test_exigencia_pode_ser_desligada_na_configuracao(): void

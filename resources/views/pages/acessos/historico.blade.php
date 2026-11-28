@@ -94,7 +94,10 @@ new #[Title('Histórico')] class extends Component {
 
         return EventoAcesso::query()
             ->doCondominio($this->condominio())
-            ->unless($this->podeVerTudo(), fn ($q) => $q->where('user_id', auth()->id()))
+            ->unless($this->podeVerTudo(), fn ($q) => $q->where(fn ($q) => $q
+                ->where('user_id', auth()->id())
+                // e as entradas dos visitantes que ele autorizou
+                ->orWhereIn('visita_id', \App\Models\Visita::query()->select('id')->where('user_id', auth()->id()))))
             ->when($this->ponto !== '', fn ($q) => $q->where('ponto_acesso_id', (int) $this->ponto))
             ->when($this->resultado !== '', fn ($q) => $q->where('resultado', $this->resultado))
             ->when($this->de !== '', fn ($q) => $q->where('created_at', '>=', Carbon::parse($this->de, $fuso)->startOfDay()->utc()))

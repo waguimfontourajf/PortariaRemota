@@ -52,6 +52,11 @@ export function iniciarTempoReal() {
 
             for (const evento of dados.eventos) {
                 avisar('tempo-real-acesso', evento);
+                if (evento.meu_visitante) {
+                    toast(evento.resultado === 'sucesso'
+                        ? { heading: `${evento.meu_visitante} chegou`, text: `Abriu: ${evento.ponto} às ${evento.hora}`, variant: 'success', duration: 15000 }
+                        : { heading: `${evento.meu_visitante} não conseguiu abrir`, text: evento.detalhe ?? '', variant: 'warning' });
+                }
                 if (evento.alerta) {
                     toast({
                         heading: `${evento.ponto ?? ''}: ${evento.resultado_nome}`,

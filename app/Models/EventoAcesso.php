@@ -68,6 +68,14 @@ class EventoAcesso extends Model
     }
 
     /**
+     * @return BelongsTo<Visita, $this>
+     */
+    public function visita(): BelongsTo
+    {
+        return $this->belongsTo(Visita::class);
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function usuario(): BelongsTo
