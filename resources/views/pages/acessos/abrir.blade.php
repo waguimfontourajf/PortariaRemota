@@ -33,7 +33,7 @@ new #[Title('Abrir')] class extends Component {
         $usuario = auth()->user();
 
         return $this->condominio()->pontosAcesso()
-            ->with(['condominio', 'dispositivo:id,online,ativo,driver'])
+            ->with(['condominio', 'dispositivo:id,online,ativo,driver', 'cameras'])
             ->where('ativo', true)
             ->orderBy('ordem')->orderBy('nome')
             ->get()
@@ -140,6 +140,11 @@ new #[Title('Abrir')] class extends Component {
                             </flux:tooltip>
                         @endif
                     </div>
+
+                    @php($camera = $ponto->cameras->first(fn ($c) => \App\Cameras\Cameras::podeVer(auth()->user(), $c)))
+                    @if ($camera)
+                        <x-camera-ao-vivo :camera="$camera" compacta wire:key="cam-{{ $ponto->id }}-{{ $camera->id }}" wire:ignore />
+                    @endif
 
                     @if ($ponto->ehLigaDesliga())
                         @php($ligado = $ponto->ligado)

@@ -122,7 +122,8 @@ No cadastro do dispositivo, um **combo box** lista os drivers. Ao escolher um, o
 
 ### 4.3 Câmeras
 - Cadastradas como dispositivo do tipo câmera: URL RTSP e/ou ONVIF, usuário e senha (guardada criptografada).
-- O **go2rtc** converte para WebRTC, e o vídeo abre no painel e no app com baixa latência.
+- **Feito (5A):** imagem ao vivo por quadros (~2 por segundo), sempre passando pelo sistema com login e permissão. Guia: `docs/CAMERAS.md`.
+- **Próximo (5B):** o **go2rtc** converte RTSP para WebRTC, e o vídeo fica fluido no painel e no app.
 - Cada ponto de acesso pode ter **câmeras vinculadas**, que aparecem automaticamente quando o interfone daquele ponto toca.
 
 ### 4.4 Interfones
@@ -248,7 +249,7 @@ Todas as tabelas importantes têm `uuid`, porque é isso que permite sincronizar
 | **2. Relés + pontos de acesso** ✅ | drivers HTTP genérico, Shelly e Tuya; botão ABRIR; histórico | **bancada (bocal + Shelly)** |
 | **3. Tempo real** ✅ | consulta leve a cada 3 s (sem servidor extra), acessos e quedas ao vivo, mapa da rede e alertas no Telegram | bancada |
 | **4. PWA do morador** ✅ | app instalável, abrir, visitantes, histórico | celular |
-| **5. Câmeras** | go2rtc, câmeras no painel e no app | câmera IP de teste |
+| **5. Câmeras** ✅ | imagem ao vivo por quadros (Intelbras, Hikvision, URL genérica), tela Câmeras, câmera junto do ABRIR; vídeo fluido (go2rtc) fica como etapa 5B | câmera Intelbras |
 | **6. Interfone e central** | Asterisk, softphone no navegador, pop-up de chamada | ATA ou interfone IP de teste |
 | 🎯 **Marco: demonstração** | apresentação no seu condomínio | |
 | **7. Servidor local** | modo local, sincronização, licença, instaladores Windows e Linux | 2 máquinas |

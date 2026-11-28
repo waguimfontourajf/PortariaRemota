@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -88,6 +89,17 @@ class PontoAcesso extends Model
     public function dispositivo(): BelongsTo
     {
         return $this->belongsTo(Dispositivo::class);
+    }
+
+    /**
+     * Câmeras que mostram este portão.
+     *
+     * @return BelongsToMany<Dispositivo, $this>
+     */
+    public function cameras(): BelongsToMany
+    {
+        return $this->belongsToMany(Dispositivo::class, 'camera_ponto_acesso', 'ponto_acesso_id', 'dispositivo_id')
+            ->withPivot('ordem')->orderByPivot('ordem');
     }
 
     /**

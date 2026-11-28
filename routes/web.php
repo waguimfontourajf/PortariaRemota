@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\EstadoAtualizacaoController;
 use App\Http\Controllers\FotoPessoaController;
+use App\Http\Controllers\ImagemCameraController;
 use App\Http\Controllers\NovidadesController;
 use App\Http\Controllers\TrocarCondominioController;
 use App\Http\Controllers\VisitanteController;
@@ -51,6 +52,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Operação
     Route::livewire('abrir', 'pages::acessos.abrir')->name('acessos.abrir');
+    Route::livewire('cameras', 'pages::cameras.index')->name('cameras.index');
+    Route::get('cameras/{dispositivo}/imagem', ImagemCameraController::class)->middleware('throttle:600,1')->name('cameras.imagem');
     Route::livewire('visitas', 'pages::visitas.index')->name('visitas.index');
     Route::livewire('visitas/nova', 'pages::visitas.form')->name('visitas.criar');
     Route::livewire('visitas/{visita}', 'pages::visitas.ver')->name('visitas.ver');

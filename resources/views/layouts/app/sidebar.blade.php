@@ -22,6 +22,11 @@
                             {{ __('Abrir') }}
                         </flux:sidebar.item>
                     @endif
+                    @if ($condominioAtual && (auth()->user()->can(\App\Enums\Permissao::CamerasVer->value) || $condominioAtual->dispositivos()->where('tipo', 'camera')->get()->contains(fn ($c) => \App\Cameras\Cameras::podeVer(auth()->user(), $c))))
+                        <flux:sidebar.item icon="video-camera" :href="route('cameras.index')" :current="request()->routeIs('cameras.*')" wire:navigate>
+                            {{ __('Câmeras') }}
+                        </flux:sidebar.item>
+                    @endif
                     @if ($condominioAtual && (auth()->user()->can(\App\Enums\Permissao::VisitasAutorizar->value) || auth()->user()->can(\App\Enums\Permissao::HistoricoVer->value)))
                         <flux:sidebar.item icon="qr-code" :href="route('visitas.index')" :current="request()->routeIs('visitas.*')" wire:navigate>
                             {{ __('Visitantes') }}

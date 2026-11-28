@@ -26,6 +26,9 @@ new #[Title('Pontos de acesso')] class extends Component {
     public int $tempo_pulso_ms = 1000;
     public bool $liberado_moradores = false;
     public bool $liberado_visitantes = false;
+
+    /** @var list<string> */
+    public array $camerasEscolhidas = [];
     public bool $ativo = true;
     public int $ordem = 0;
     public string $observacoes = '';
@@ -42,6 +45,12 @@ new #[Title('Pontos de acesso')] class extends Component {
     }
 
     #[Computed]
+    public function cameras()
+    {
+        return $this->condominio()->dispositivos()->where('tipo', 'camera')->orderBy('nome')->get(['id', 'nome']);
+    }
+
+    #[Computed]
     public function dispositivos()
     {
         return $this->condominio()->dispositivos()->where('tipo', 'rele')->orderBy('nome')->get();
@@ -50,7 +59,7 @@ new #[Title('Pontos de acesso')] class extends Component {
     public function novo(): void
     {
         $this->exigirPermissao(Permissao::DispositivosGerenciar);
-        $this->reset('pontoId', 'nome', 'tipo', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'observacoes');
+        $this->reset('pontoId', 'nome', 'tipo', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'observacoes', 'camerasEscolhidas');
         $this->dispositivo_id = (string) ($this->dispositivos->first()?->id ?? '');
         $this->ordem = ($this->pontos->max('ordem') ?? 0) + 1;
         $this->resetValidation();
@@ -74,6 +83,7 @@ new #[Title('Pontos de acesso')] class extends Component {
             'ordem' => $ponto->ordem,
             'observacoes' => (string) $ponto->observacoes,
         ]);
+        $this->camerasEscolhidas = $ponto->cameras()->pluck('dispositivos.id')->map(fn ($id) => (string) $id)->all();
         $this->resetValidation();
         Flux::modal('ponto')->show();
     }
@@ -96,15 +106,22 @@ new #[Title('Pontos de acesso')] class extends Component {
             'ativo' => ['boolean'],
             'ordem' => ['integer', 'min:0', 'max:999'],
             'observacoes' => ['nullable', 'string', 'max:1000'],
+            'camerasEscolhidas' => ['array'],
+            'camerasEscolhidas.*' => [Rule::in($this->cameras->pluck('id')->map(fn ($id) => (string) $id)->all())],
         ], attributes: ['dispositivo_id' => 'dispositivo', 'tempo_pulso_ms' => 'tempo do pulso']);
 
         $dados['observacoes'] = $dados['observacoes'] ?: null;
+        $cameras = collect($dados['camerasEscolhidas'] ?? [])->values()->mapWithKeys(fn ($id, $i) => [(int) $id => ['ordem' => $i]])->all();
+        unset($dados['camerasEscolhidas']);
 
         if ($this->pontoId) {
-            $this->buscar($this->pontoId)->update($dados);
+            $ponto = $this->buscar($this->pontoId);
+            $ponto->update($dados);
         } else {
-            $this->condominio()->pontosAcesso()->create($dados);
+            $ponto = $this->condominio()->pontosAcesso()->create($dados);
         }
+
+        $ponto->cameras()->sync($cameras);
 
         Flux::modal('ponto')->close();
         Flux::toast(variant: 'success', text: __('Ponto de acesso salvo.'));
@@ -210,6 +227,13 @@ new #[Title('Pontos de acesso')] class extends Component {
                 <div class="sm:col-span-2 space-y-3">
                     <flux:switch wire:model="liberado_moradores" :label="__('Moradores podem abrir')" :description="__('Se desligado, apenas operadores, porteiros e síndico abrem.')" />
                     <flux:switch wire:model="liberado_visitantes" :label="__('Visitantes podem abrir (link do morador)')" :description="__('Só para acionamento por pulso. Deixe desligado em garagens, se preferir.')" />
+                    @if ($this->cameras->isNotEmpty())
+                        <flux:checkbox.group wire:model="camerasEscolhidas" :label="__('Câmeras deste portão')" :description="__('Aparecem junto do botão ABRIR.')">
+                            @foreach ($this->cameras as $c)
+                                <flux:checkbox :value="(string) $c->id" :label="$c->nome" />
+                            @endforeach
+                        </flux:checkbox.group>
+                    @endif
                     <flux:switch wire:model="ativo" :label="__('Ativo')" />
                 </div>
             </div>

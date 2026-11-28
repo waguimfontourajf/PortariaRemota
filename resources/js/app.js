@@ -1,8 +1,10 @@
 import mapaDeRede from './mapa-de-rede';
+import cameraAoVivo from './camera-ao-vivo';
 import { iniciarTempoReal } from './tempo-real';
 
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('mapaDeRede', mapaDeRede);
+    window.Alpine.data('cameraAoVivo', cameraAoVivo);
     window.Alpine.store('tempoReal', { conectado: true });
 });
 

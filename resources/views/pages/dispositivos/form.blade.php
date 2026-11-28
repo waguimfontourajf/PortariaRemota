@@ -1,5 +1,6 @@
 <?php
 
+use App\Cameras\Cameras;
 use App\Dispositivos\Campo;
 use App\Dispositivos\RegistroDeDrivers;
 use App\Enums\MetodoMonitoramento;
@@ -116,6 +117,10 @@ new class extends Component {
             $this->config = [];
             $this->segredosSalvos = [];
             unset($this->classe, $this->campos);
+            $this->aplicarPadroes();
+            if ($this->tipo === 'camera' && $this->porta === '') {
+                $this->porta = '80';
+            }
             if ($this->metodo_monitoramento === 'driver') {
                 $this->metodo_monitoramento = 'ping';
             }
@@ -150,7 +155,47 @@ new class extends Component {
     #[Computed]
     public function campos(): array
     {
-        return $this->classe ? $this->classe::campos() : [];
+        return $this->camposPara($this->classe);
+    }
+
+    /**
+     * Campos de configuração: os do driver (relé/leitora) ou os da câmera.
+     *
+     * @return list<Campo>
+     */
+    private function camposPara(?string $classe): array
+    {
+        return match (true) {
+            $classe !== null => $classe::campos(),
+            $this->tipo === 'camera' => Cameras::campos(),
+            default => [],
+        };
+    }
+
+    /** Prévia da imagem no teste da câmera (data URI). */
+    public ?string $previaCamera = null;
+
+    public function testarCamera(): void
+    {
+        $this->exigirPermissao(Permissao::DispositivosGerenciar);
+        abort_unless($this->tipo === 'camera', 422);
+        $dados = $this->validar();
+        $existente = $this->dispositivoId ? $this->condominio()->dispositivos()->findOrFail($this->dispositivoId) : null;
+
+        $temporario = $existente ? clone $existente : new Dispositivo;
+        $temporario->forceFill([...$dados, 'config' => $this->configFinal($existente)]);
+        $inicio = hrtime(true);
+
+        try {
+            $jpeg = app(Cameras::class)->buscar($temporario);
+            $this->previaCamera = 'data:image/jpeg;base64,'.base64_encode($jpeg);
+            $this->ultimoTeste = ['sucesso' => true, 'mensagem' => __('Imagem recebida (:kb KB).', ['kb' => (int) ceil(strlen($jpeg) / 1024)]), 'ligado' => null,
+                'duracao' => (int) ((hrtime(true) - $inicio) / 1_000_000), 'acao' => 'camera', 'canal' => 1, 'registro' => []];
+        } catch (\App\Dispositivos\ExcecaoDeComunicacao $e) {
+            $this->previaCamera = null;
+            $this->ultimoTeste = ['sucesso' => false, 'mensagem' => $e->getMessage(), 'ligado' => null,
+                'duracao' => (int) ((hrtime(true) - $inicio) / 1_000_000), 'acao' => 'camera', 'canal' => 1, 'registro' => []];
+        }
     }
 
     public function updatedDriver(): void
@@ -309,7 +354,7 @@ new class extends Component {
         ];
         $atributos = ['host' => 'endereço (IP)', 'mac' => 'MAC', 'porta_monitoramento' => 'porta a testar'];
 
-        foreach ($classe ? $classe::campos() : [] as $campo) {
+        foreach ($this->camposPara($classe) as $campo) {
             $regrasCampo = $campo->regrasDeValidacao();
             if ($campo->tipo === 'senha' && in_array($campo->nome, $this->segredosSalvos, true)) {
                 $regrasCampo[0] = 'nullable'; // mantém o valor salvo se ficar em branco
@@ -396,7 +441,26 @@ new class extends Component {
                     <flux:input wire:model="host" :label="__('Endereço (IP)')" placeholder="192.168.0.50" class="font-mono" autocomplete="off" :required="(bool) $this->classe" />
                     <flux:input wire:model="porta" type="number" :label="__('Porta')" :placeholder="(string) ($this->classe ? $this->classe::portaPadrao() : '')" />
                 @endif
-                @if ($this->classe)
+                @if ($tipo === 'camera')
+            <flux:fieldset>
+                <flux:legend>{{ __('Testar a câmera') }}</flux:legend>
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:button icon="camera" wire:click="testarCamera" wire:target="testarCamera" wire:loading.attr="disabled">{{ __('Buscar imagem agora') }}</flux:button>
+                    <flux:icon.loading wire:loading wire:target="testarCamera" class="size-5 text-zinc-400" />
+                </div>
+                @if ($ultimoTeste && ($ultimoTeste['acao'] ?? null) === 'camera')
+                    <flux:callout class="mt-4" :variant="$ultimoTeste['sucesso'] ? 'success' : 'danger'" :icon="$ultimoTeste['sucesso'] ? 'check-circle' : 'x-circle'"
+                        :heading="($ultimoTeste['sucesso'] ? __('Funcionou') : __('Falhou')).' — '.$ultimoTeste['duracao'].' ms'">
+                        <flux:callout.text>{{ $ultimoTeste['mensagem'] }}</flux:callout.text>
+                    </flux:callout>
+                @endif
+                @if ($previaCamera)
+                    <img src="{{ $previaCamera }}" alt="" class="mt-4 w-full rounded-lg">
+                @endif
+            </flux:fieldset>
+        @endif
+
+        @if ($this->classe)
                     <flux:input wire:model="canais" type="number" min="1" :max="$this->classe::maximoDeCanais()" :label="__('Quantidade de canais (relés)')" />
                 @else
                     <flux:input wire:model="mac" :label="__('MAC (opcional)')" placeholder="AA:BB:CC:DD:EE:FF" class="font-mono" />

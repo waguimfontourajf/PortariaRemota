@@ -138,6 +138,7 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `docs/PROJETO.md` | Documento do projeto |
 | `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |
 | `docs/APP.md` | App no celular (PWA) e autorização de visitantes |
+| `docs/CAMERAS.md` | Câmeras Intelbras/Hikvision: cadastro, privacidade e imagem ao vivo |
 | `docs/MONITORAMENTO.md` | Mapa da rede, monitoramento e alertas do Telegram |
 | `resources/js/tempo-real.js` + `NovidadesController` | Tempo real: as telas perguntam "tem novidade?" a cada 3 s |
 | `app/Monitoramento/` | Testes (ping/TCP/driver), regras de queda e volta |
