@@ -24,6 +24,45 @@ class LeitorasFaciaisTest extends CadastrosTestCase
     {
         parent::setUp();
         Storage::fake('local');
+        $this->leitoraPedeSenhaDigest();
+    }
+
+    /**
+     * Intelbras e Hikvision usam autenticação Digest: como o aparelho real,
+     * a leitora simulada responde 401 com o desafio quando a requisição chega
+     * sem senha. O Guzzle 8 manda primeiro essa "sondagem" sem o corpo e só
+     * depois a requisição de verdade, já autenticada. Sem isso, a simulação
+     * aceitaria a sondagem e o Guzzle abortaria ("server did not issue a challenge").
+     *
+     * Registrado antes dos Http::fake() de cada teste, então é avaliado primeiro;
+     * devolve null (segue para as respostas do teste) quando já há senha.
+     */
+    private function leitoraPedeSenhaDigest(): void
+    {
+        Http::fake(function (Request $requisicao) {
+            $usaDigest = str_contains($requisicao->url(), '/cgi-bin/') || str_contains($requisicao->url(), '/ISAPI/');
+
+            if ($usaDigest && ! $requisicao->hasHeader('Authorization')) {
+                return Http::response('', 401, [
+                    'WWW-Authenticate' => 'Digest realm="Leitora", qop="auth", nonce="'.md5('nonce').'", opaque="'.md5('opaco').'", algorithm=MD5',
+                ]);
+            }
+
+            return null;
+        });
+    }
+
+    public function test_envia_a_senha_com_digest_depois_do_desafio(): void
+    {
+        Http::fake(['*' => Http::response('OK')]);
+        $this->leitora('intelbras_facial');
+
+        $resultado = app(SincronizacaoFacial::class)->sincronizarPessoa($this->pessoaLiberada())[0];
+
+        $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'AccessUser.cgi')
+            && str_starts_with($r->header('Authorization')[0] ?? '', 'Digest username="admin"')
+            && str_contains($r->header('Authorization')[0], 'realm="Leitora"'));
     }
 
     private function leitora(string $driver, array $config = []): Dispositivo
@@ -87,9 +126,9 @@ class LeitorasFaciaisTest extends CadastrosTestCase
 
         $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'AccessUser.cgi?action=insertMulti')
-            && $r['UserList'][0]['UserID'] === (string) $pessoa->id && $r['UserList'][0]['UserName'] === 'Maria Souza');
+            && ($r->data()['UserList'][0]['UserID'] ?? null) === (string) $pessoa->id && ($r->data()['UserList'][0]['UserName'] ?? null) === 'Maria Souza');
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'AccessFace.cgi?action=insertMulti')
-            && base64_decode($r['FaceList'][0]['PhotoData'][0]) === app(FotoDePessoa::class)->conteudo($pessoa));
+            && base64_decode(($r->data()['FaceList'][0]['PhotoData'][0] ?? null)) === app(FotoDePessoa::class)->conteudo($pessoa));
         $this->assertDatabaseHas('dispositivo_pessoa', ['dispositivo_id' => $leitora->id, 'pessoa_id' => $pessoa->id, 'erro' => null]);
     }
 
@@ -117,7 +156,7 @@ class LeitorasFaciaisTest extends CadastrosTestCase
 
         $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
         Http::assertSent(fn (Request $r) => $r->method() === 'PUT' && str_contains($r->url(), '/ISAPI/AccessControl/UserInfo/SetUp')
-            && $r['UserInfo']['employeeNo'] === (string) $pessoa->id);
+            && ($r->data()['UserInfo']['employeeNo'] ?? null) === (string) $pessoa->id);
         Http::assertSent(fn (Request $r) => str_contains($r->url(), '/ISAPI/Intelligent/FDLib/FDSetUp') && $r->isMultipart());
     }
 
@@ -151,8 +190,8 @@ class LeitorasFaciaisTest extends CadastrosTestCase
         $resultado = app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa)[0];
 
         $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'users' && $r['values'][0]['id'] === $pessoa->id);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'user_groups');
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && ($r->data()['object'] ?? null) === 'users' && ($r->data()['values'][0]['id'] ?? null) === $pessoa->id);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && ($r->data()['object'] ?? null) === 'user_groups');
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'user_set_image.fcgi') && str_contains($r->url(), 'user_id='.$pessoa->id)
             && $r->hasHeader('Content-Type', 'application/octet-stream'));
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'logout.fcgi'));
@@ -300,7 +339,7 @@ class LeitorasFaciaisTest extends CadastrosTestCase
         Http::assertSent(fn (Request $r) => str_contains(urldecode($r->url()), 'AccessTimeSchedule[1].TimeSchedule[1][0]=1 07:00:00-18:00:59')
             && str_contains(urldecode($r->url()), 'AccessTimeSchedule[1].TimeSchedule[0][0]=0 00:00:00-00:00:00'));
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'AccessUser.cgi?action=insertMulti')
-            && $r['UserList'][0]['TimeSections'] === [1] && $r['UserList'][0]['ValidTo'] === '2027-03-31 23:59:59');
+            && ($r->data()['UserList'][0]['TimeSections'] ?? null) === [1] && ($r->data()['UserList'][0]['ValidTo'] ?? null) === '2027-03-31 23:59:59');
     }
 
     public function test_hikvision_recebe_horario_e_validade(): void
@@ -313,12 +352,12 @@ class LeitorasFaciaisTest extends CadastrosTestCase
 
         $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
         Http::assertSent(fn (Request $r) => str_contains($r->url(), '/UserRightWeekPlanCfg/2')
-            && $r['UserRightWeekPlanCfg']['WeekPlanCfg'][1]['week'] === 'Monday' && $r['UserRightWeekPlanCfg']['WeekPlanCfg'][1]['enable'] === true
-            && $r['UserRightWeekPlanCfg']['WeekPlanCfg'][0]['enable'] === false);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/UserRightPlanTemplate/2') && $r['UserRightPlanTemplate']['weekPlanNo'] === 2);
+            && ($r->data()['UserRightWeekPlanCfg']['WeekPlanCfg'][1]['week'] ?? null) === 'Monday' && ($r->data()['UserRightWeekPlanCfg']['WeekPlanCfg'][1]['enable'] ?? null) === true
+            && ($r->data()['UserRightWeekPlanCfg']['WeekPlanCfg'][0]['enable'] ?? null) === false);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/UserRightPlanTemplate/2') && ($r->data()['UserRightPlanTemplate']['weekPlanNo'] ?? null) === 2);
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'UserInfo/SetUp')
-            && $r['UserInfo']['RightPlan'][0]['planTemplateNo'] === '2'
-            && $r['UserInfo']['Valid']['enable'] === true && $r['UserInfo']['Valid']['beginTime'] === '2026-12-01T00:00:00');
+            && ($r->data()['UserInfo']['RightPlan'][0]['planTemplateNo'] ?? null) === '2'
+            && ($r->data()['UserInfo']['Valid']['enable'] ?? null) === true && ($r->data()['UserInfo']['Valid']['beginTime'] ?? null) === '2026-12-01T00:00:00');
     }
 
     public function test_control_id_recebe_horario_como_grupo(): void
@@ -335,10 +374,10 @@ class LeitorasFaciaisTest extends CadastrosTestCase
         $resultado = app(SincronizacaoFacial::class)->sincronizarPessoa($pessoa->refresh())[0];
 
         $this->assertTrue($resultado['sucesso'], $resultado['mensagem']);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'time_spans'
-            && $r['values'][0]['mon'] === 1 && $r['values'][0]['sun'] === 0 && $r['values'][0]['start'] === 7 * 3600 && $r['values'][0]['time_zone_id'] === 1001);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'user_groups' && $r['values'][0]['group_id'] === 1001);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && $r['object'] === 'portal_access_rules');
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && ($r->data()['object'] ?? null) === 'time_spans'
+            && ($r->data()['values'][0]['mon'] ?? null) === 1 && ($r->data()['values'][0]['sun'] ?? null) === 0 && ($r->data()['values'][0]['start'] ?? null) === 7 * 3600 && ($r->data()['values'][0]['time_zone_id'] ?? null) === 1001);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && ($r->data()['object'] ?? null) === 'user_groups' && ($r->data()['values'][0]['group_id'] ?? null) === 1001);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_objects.fcgi') && ($r->data()['object'] ?? null) === 'portal_access_rules');
     }
 
     public function test_editar_horario_reenvia_quem_usa(): void
@@ -424,7 +463,7 @@ class LeitorasFaciaisTest extends CadastrosTestCase
 
         $this->assertSame(2, app(ImportacaoDePassagens::class)->importar($leitora));
         $this->assertSame('43', $leitora->fresh()->eventos_cursor);
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'load_objects.fcgi') && ($r['object'] ?? null) === 'access_logs');
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'load_objects.fcgi') && (($r->data()['object'] ?? null) ?? null) === 'access_logs');
     }
 
     public function test_morador_ve_a_propria_passagem_no_historico(): void
