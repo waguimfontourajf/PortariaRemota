@@ -124,7 +124,7 @@ new #[Title('Mapa geral')] class extends Component {
     }
 }; ?>
 
-<section class="w-full" x-data="mapaDeRede({ podeEditar: @js(auth()->user()->isSuperAdmin()), permiteLigar: false, intervalo: 20000 })">
+<section class="w-full" x-data="mapaDeRede({ podeEditar: @js(auth()->user()->isSuperAdmin()), permiteLigar: false, intervalo: 30000 })" x-on:tempo-real-rede.window="carregar()">
     <x-cabecalho-pagina :titulo="__('Mapa geral')" :subtitulo="__('Todos os condomínios ligados à central. Clique em um condomínio para ver os detalhes.')" />
 
     <div class="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-zinc-600 dark:text-zinc-400">

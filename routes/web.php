@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\EstadoAtualizacaoController;
 use App\Http\Controllers\FotoPessoaController;
+use App\Http\Controllers\NovidadesController;
 use App\Http\Controllers\TrocarCondominioController;
 use Illuminate\Support\Facades\Route;
 
@@ -9,6 +10,9 @@ Route::redirect('/', '/painel')->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::view('painel', 'dashboard')->name('dashboard');
+
+    // Tempo real: as telas perguntam "tem novidade?" a cada poucos segundos.
+    Route::get('novidades', NovidadesController::class)->name('novidades');
 
     Route::post('condominio/{condominio}/selecionar', TrocarCondominioController::class)
         ->name('condominio.selecionar');

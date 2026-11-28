@@ -176,8 +176,8 @@ new #[Title('Mapa da rede')] class extends Component {
     }
 }; ?>
 
-<section class="w-full" x-data="mapaDeRede({ podeEditar: @js($this->podeEditar()), permiteLigar: true })">
-    <x-cabecalho-pagina :titulo="__('Mapa da rede')" :subtitulo="$this->condominio()->nome.' — '.__('atualiza sozinho a cada 15 segundos')">
+<section class="w-full" x-data="mapaDeRede({ podeEditar: @js($this->podeEditar()), permiteLigar: true, intervalo: 30000 })" x-on:tempo-real-rede.window="carregar()">
+    <x-cabecalho-pagina :titulo="__('Mapa da rede')" :subtitulo="$this->condominio()->nome.' — '.__('atualiza sozinho ao detectar mudança')">
         <x-slot:acoes>
             @if ($this->podeEditar())
                 <flux:button icon="link" x-on:click="alternarModoLigar()" x-bind:class="modoLigar && 'ring-2 ring-blue-500'">

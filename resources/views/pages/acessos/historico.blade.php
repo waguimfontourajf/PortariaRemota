@@ -105,7 +105,7 @@ new #[Title('Histórico')] class extends Component {
     }
 }; ?>
 
-<section class="w-full" @if ($this->temLeitoras) wire:init="importarPassagens" @endif>
+<section class="w-full" x-on:tempo-real-acessos.window="$wire.$refresh()" @if ($this->temLeitoras) wire:init="importarPassagens" @endif>
     <x-cabecalho-pagina :titulo="__('Histórico de acessos')" :subtitulo="$this->podeVerTudo() ? __('Todas as aberturas e tentativas neste condomínio.') : __('Suas aberturas neste condomínio.')">
         @if ($this->temLeitoras && $this->podeVerTudo())
             <x-slot:acoes>
@@ -151,7 +151,7 @@ new #[Title('Histórico')] class extends Component {
         </flux:table.columns>
         <flux:table.rows>
             @forelse ($this->eventos as $e)
-                <flux:table.row :key="$e->id">
+                <flux:table.row :key="$e->id" @class(['transition-colors duration-1000', 'bg-amber-100 dark:bg-amber-900/40' => $e->created_at->gt(now()->subSeconds(10))])>
                     <flux:table.cell class="whitespace-nowrap">{{ $e->created_at->timezone($this->condominio()->fuso_horario)->format('d/m/Y H:i:s') }}</flux:table.cell>
                     <flux:table.cell variant="strong">{{ $e->ponto_nome ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="max-sm:hidden">{{ $e->acao->label() }}</flux:table.cell>

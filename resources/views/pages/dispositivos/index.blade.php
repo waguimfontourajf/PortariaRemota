@@ -75,7 +75,7 @@ new #[Title('Dispositivos')] class extends Component {
     }
 }; ?>
 
-<section class="w-full">
+<section class="w-full" x-on:tempo-real-rede.window="$wire.$refresh()">
     <x-cabecalho-pagina :titulo="__('Dispositivos')" :subtitulo="__('Relés e demais equipamentos instalados no condomínio.')">
         <x-slot:acoes>
             <flux:button icon="share" :href="route('rede.mapa')" wire:navigate>{{ __('Mapa da rede') }}</flux:button>

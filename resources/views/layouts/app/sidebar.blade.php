@@ -100,6 +100,15 @@
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 
+            {{-- Indicador do tempo real --}}
+            <div class="flex items-center gap-2 px-2 text-xs text-zinc-500" x-data>
+                <span class="relative flex size-2.5">
+                    <span class="absolute inline-flex size-full animate-ping rounded-full opacity-60" :class="$store.tempoReal.conectado ? 'bg-green-500' : 'hidden'"></span>
+                    <span class="relative inline-flex size-2.5 rounded-full" :class="$store.tempoReal.conectado ? 'bg-green-500' : 'bg-zinc-400'"></span>
+                </span>
+                <span x-text="$store.tempoReal.conectado ? @js(__('Ao vivo')) : @js(__('Sem conexão — tentando de novo…'))"></span>
+            </div>
+
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 

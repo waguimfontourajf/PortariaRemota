@@ -138,6 +138,7 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `docs/PROJETO.md` | Documento do projeto |
 | `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |
 | `docs/MONITORAMENTO.md` | Mapa da rede, monitoramento e alertas do Telegram |
+| `resources/js/tempo-real.js` + `NovidadesController` | Tempo real: as telas perguntam "tem novidade?" a cada 3 s |
 | `app/Monitoramento/` | Testes (ping/TCP/driver), regras de queda e volta |
 | `docs/MODBUS.md` | Módulos de relé Modbus com porta de rede (eletechsup e similares) |
 | `docs/LEITORAS.md` | Leitoras de reconhecimento facial: foto, LGPD e sincronização |
