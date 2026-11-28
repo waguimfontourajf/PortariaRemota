@@ -22,6 +22,11 @@
                             {{ __('Abrir') }}
                         </flux:sidebar.item>
                     @endif
+                    @if (auth()->user()->ehEquipeDaCentral())
+                        <flux:sidebar.item icon="globe-americas" :href="route('rede.geral')" :current="request()->routeIs('rede.geral')" wire:navigate>
+                            {{ __('Mapa geral') }}
+                        </flux:sidebar.item>
+                    @endif
                     @if ($condominioAtual && (auth()->user()->can(\App\Enums\Permissao::HistoricoVer->value) || auth()->user()->can(\App\Enums\Permissao::HistoricoProprioVer->value)))
                         <flux:sidebar.item icon="clock" :href="route('acessos.historico')" :current="request()->routeIs('acessos.historico')" wire:navigate>
                             {{ __('Histórico') }}
@@ -33,6 +38,9 @@
                     <flux:sidebar.group :heading="__('Equipamentos')" class="grid">
                         <flux:sidebar.item icon="cpu-chip" :href="route('dispositivos.index')" :current="request()->routeIs('dispositivos.*')" wire:navigate>
                             {{ __('Dispositivos') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="share" :href="route('rede.mapa')" :current="request()->routeIs('rede.mapa')" wire:navigate>
+                            {{ __('Mapa da rede') }}
                         </flux:sidebar.item>
                         <flux:sidebar.item icon="arrows-right-left" :href="route('pontos.index')" :current="request()->routeIs('pontos.*')" wire:navigate>
                             {{ __('Pontos de acesso') }}
@@ -72,6 +80,9 @@
                         @if (auth()->user()->isSuperAdmin())
                             <flux:sidebar.item icon="building-office-2" :href="route('condominios.index')" :current="request()->routeIs('condominios.index', 'condominios.criar')" wire:navigate>
                                 {{ __('Todos os condomínios') }}
+                            </flux:sidebar.item>
+                            <flux:sidebar.item icon="bell-alert" :href="route('sistema.alertas')" :current="request()->routeIs('sistema.alertas')" wire:navigate>
+                                {{ __('Alertas (Telegram)') }}
                             </flux:sidebar.item>
                             <flux:sidebar.item icon="arrow-down-tray" :href="route('sistema.atualizacao')" :current="request()->routeIs('sistema.atualizacao')" wire:navigate>
                                 {{ __('Atualizar sistema') }}

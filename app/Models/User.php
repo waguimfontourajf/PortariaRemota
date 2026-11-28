@@ -208,13 +208,31 @@ class User extends Authenticatable
             return true;
         }
 
+        return $this->temAlgumPerfil(Perfil::exigindo2fa());
+    }
+
+    /**
+     * O usuário tem algum destes perfis em QUALQUER condomínio?
+     *
+     * @param  list<string>  $perfis
+     */
+    public function temAlgumPerfil(array $perfis): bool
+    {
         return $this->getConnection()
             ->table(config('permission.table_names.model_has_roles').' as mhr')
             ->join(config('permission.table_names.roles').' as r', 'r.id', '=', 'mhr.role_id')
             ->where('mhr.model_type', $this->getMorphClass())
             ->where('mhr.'.config('permission.column_names.model_morph_key'), $this->getKey())
-            ->whereIn('r.name', Perfil::exigindo2fa())
+            ->whereIn('r.name', $perfis)
             ->exists();
+    }
+
+    /**
+     * Super admin ou operador da central (acompanham vários condomínios).
+     */
+    public function ehEquipeDaCentral(): bool
+    {
+        return $this->isSuperAdmin() || $this->temAlgumPerfil([Perfil::Operador->value]);
     }
 
     public function getActivitylogOptions(): LogOptions

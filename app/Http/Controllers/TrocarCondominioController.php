@@ -18,6 +18,8 @@ class TrocarCondominioController extends Controller
             ->performedOn($condominio)
             ->log('Trocou o condomínio atual');
 
-        return redirect()->route('dashboard');
+        return $request->input('voltar') === 'mapa'
+            ? redirect()->route('rede.mapa')
+            : redirect()->route('dashboard');
     }
 }

@@ -105,4 +105,21 @@ return [
         'limite_minutos' => 20,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Monitoramento da rede
+    |--------------------------------------------------------------------------
+    */
+
+    'monitoramento' => [
+        // Tempo máximo de espera de cada teste.
+        'timeout_ms' => (int) env('PORTARIA_MONITOR_TIMEOUT_MS', 1500),
+        // Acima disso o equipamento aparece como "lento" (amarelo).
+        'lento_ms' => (int) env('PORTARIA_MONITOR_LENTO_MS', 500),
+        // Falhas seguidas antes de considerar "offline" (evita alarme falso).
+        'falhas_para_offline' => (int) env('PORTARIA_MONITOR_FALHAS', 2),
+        // Quantos testes de ping rodam ao mesmo tempo.
+        'paralelo' => 20,
+    ],
+
 ];

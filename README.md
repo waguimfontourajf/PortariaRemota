@@ -100,6 +100,7 @@ No primeiro login, o super admin é levado para **Configurações → Segurança
 | `php artisan portaria:criar-admin` | Cria ou promove um super admin |
 | `php artisan db:seed --class=PerfisSeeder` | Atualiza perfis e permissões |
 | `php artisan portaria:dispositivo-testar` | Testa um dispositivo (use `--detalhes` para diagnóstico) |
+| `php artisan portaria:monitorar` | Testa agora todos os equipamentos monitorados |
 | `php artisan portaria:tuya-procurar` | Encontra aparelhos Tuya na rede (IP, ID, versão) |
 | `php artisan portaria:tuya-chaves` | Busca as chaves locais dos aparelhos Tuya (uma vez) |
 | `php artisan portaria:leitoras-sincronizar` | Envia as pessoas (foto + autorização) para as leitoras faciais |
@@ -136,5 +137,7 @@ As permissões de cada perfil ficam em `app/Enums/Perfil.php`.
 | `app/Acoes/AcionarPontoDeAcesso.php` | Único caminho para abrir um portão (permissão, trava, histórico) |
 | `docs/PROJETO.md` | Documento do projeto |
 | `docs/TUYA.md` | Passo a passo para aparelhos Tuya / Smart Life |
+| `docs/MONITORAMENTO.md` | Mapa da rede, monitoramento e alertas do Telegram |
+| `app/Monitoramento/` | Testes (ping/TCP/driver), regras de queda e volta |
 | `docs/MODBUS.md` | Módulos de relé Modbus com porta de rede (eletechsup e similares) |
 | `docs/LEITORAS.md` | Leitoras de reconhecimento facial: foto, LGPD e sincronização |

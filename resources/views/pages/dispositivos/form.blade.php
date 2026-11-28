@@ -2,7 +2,9 @@
 
 use App\Dispositivos\Campo;
 use App\Dispositivos\RegistroDeDrivers;
+use App\Enums\MetodoMonitoramento;
 use App\Enums\Permissao;
+use App\Enums\TipoDispositivo;
 use App\Livewire\Concerns\OperaNoCondominioAtual;
 use App\Models\Dispositivo;
 use App\Support\SincronizacaoFacial;
@@ -20,7 +22,13 @@ new class extends Component {
     public ?int $dispositivoId = null;
 
     public string $nome = '';
+    public string $tipo = 'rele';
     public string $driver = 'shelly';
+    public string $mac = '';
+    public string $fabricante_modelo = '';
+    public bool $monitorar = true;
+    public string $metodo_monitoramento = 'ping';
+    public string $porta_monitoramento = '';
     public string $host = '';
     public string $porta = '';
     public int $canais = 1;
@@ -50,7 +58,13 @@ new class extends Component {
             $this->garantirDoCondominio($dispositivo);
             $this->dispositivoId = $dispositivo->id;
             $this->nome = $dispositivo->nome;
-            $this->driver = $dispositivo->driver;
+            $this->tipo = $dispositivo->tipo->value;
+            $this->driver = (string) $dispositivo->driver;
+            $this->mac = (string) $dispositivo->mac;
+            $this->fabricante_modelo = (string) $dispositivo->fabricante_modelo;
+            $this->monitorar = $dispositivo->monitorar;
+            $this->metodo_monitoramento = $dispositivo->metodo_monitoramento->value;
+            $this->porta_monitoramento = (string) $dispositivo->porta_monitoramento;
             $this->host = (string) $dispositivo->host;
             $this->porta = (string) $dispositivo->porta;
             $this->canais = $dispositivo->canais;
@@ -68,7 +82,43 @@ new class extends Component {
                 $this->config[$campo->nome] = $valor;
             }
         } else {
+            // Vindo do mapa: já chega com o tipo escolhido.
+            $tipo = TipoDispositivo::tryFrom((string) request()->query('tipo', ''));
+            if ($tipo) {
+                $this->tipo = $tipo->value;
+                if (! $tipo->usaDriver()) {
+                    $this->driver = '';
+                }
+            }
             $this->aplicarPadroes();
+        }
+    }
+
+    /**
+     * Relés e leitoras usam driver; equipamentos de rede (roteador, switch...) não.
+     */
+    #[Computed]
+    public function usaDriver(): bool
+    {
+        return (TipoDispositivo::tryFrom($this->tipo) ?? TipoDispositivo::Rele)->usaDriver();
+    }
+
+    public function updatedTipo(): void
+    {
+        abort_unless(TipoDispositivo::tryFrom($this->tipo) !== null, 422);
+        unset($this->usaDriver);
+
+        if ($this->usaDriver && $this->driver === '') {
+            $this->driver = (string) array_key_first($this->drivers);
+            $this->updatedDriver();
+        } elseif (! $this->usaDriver) {
+            $this->driver = '';
+            $this->config = [];
+            $this->segredosSalvos = [];
+            unset($this->classe, $this->campos);
+            if ($this->metodo_monitoramento === 'driver') {
+                $this->metodo_monitoramento = 'ping';
+            }
         }
     }
 
@@ -87,9 +137,11 @@ new class extends Component {
      * @return class-string<\App\Dispositivos\Contratos\DriverDeRele>
      */
     #[Computed]
-    public function classe(): string
+    public function classe(): ?string
     {
-        return app(RegistroDeDrivers::class)->classe($this->driver);
+        return $this->driver !== '' && app(RegistroDeDrivers::class)->existe($this->driver)
+            ? app(RegistroDeDrivers::class)->classe($this->driver)
+            : null;
     }
 
     /**
@@ -98,7 +150,7 @@ new class extends Component {
     #[Computed]
     public function campos(): array
     {
-        return $this->classe::campos();
+        return $this->classe ? $this->classe::campos() : [];
     }
 
     public function updatedDriver(): void
@@ -122,7 +174,12 @@ new class extends Component {
             $existente->update($dados);
             Flux::toast(variant: 'success', text: __('Dispositivo salvo.'));
         } else {
-            $novo = $this->condominio()->dispositivos()->create($dados);
+            // Vindo do mapa: posiciona onde o usuário clicou.
+            $novo = $this->condominio()->dispositivos()->make($dados);
+            $novo->forceFill([
+                'mapa_x' => is_numeric(request()->query('x')) ? (int) request()->query('x') : null,
+                'mapa_y' => is_numeric(request()->query('y')) ? (int) request()->query('y') : null,
+            ])->save();
             Flux::toast(variant: 'success', text: __('Dispositivo cadastrado. Agora teste a comunicação.'));
             $this->redirectRoute('dispositivos.editar', $novo, navigate: true);
         }
@@ -188,6 +245,7 @@ new class extends Component {
     public function testar(string $acao = 'testar'): void
     {
         $this->exigirPermissao(Permissao::DispositivosGerenciar);
+        abort_if($this->classe === null, 422);
         $dados = $this->validar();
         $existente = $this->dispositivoId ? $this->condominio()->dispositivos()->findOrFail($this->dispositivoId) : null;
 
@@ -230,19 +288,28 @@ new class extends Component {
      */
     private function validar(): array
     {
-        $classe = app(RegistroDeDrivers::class)->classe($this->driver);
+        $classe = $this->usaDriver && app(RegistroDeDrivers::class)->existe($this->driver)
+            ? app(RegistroDeDrivers::class)->classe($this->driver)
+            : null;
+        $precisaHost = $classe ? $classe::usaHost() : ($this->monitorar && $this->metodo_monitoramento !== 'driver');
         $regras = [
             'nome' => ['required', 'string', 'max:255'],
-            'driver' => ['required', Rule::in(array_keys($this->drivers))],
-            'host' => [$classe::usaHost() ? 'required' : 'nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9.\-:\[\]]+$/'],
+            'tipo' => ['required', Rule::enum(TipoDispositivo::class)],
+            'driver' => $this->usaDriver ? ['required', Rule::in(array_keys($this->drivers))] : ['nullable'],
+            'host' => [$precisaHost ? 'required' : 'nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9.\-:\[\]]+$/'],
             'porta' => ['nullable', 'integer', 'between:1,65535'],
-            'canais' => ['required', 'integer', 'between:1,'.$classe::maximoDeCanais()],
+            'canais' => $classe ? ['required', 'integer', 'between:1,'.$classe::maximoDeCanais()] : ['nullable', 'integer'],
+            'mac' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/'],
+            'fabricante_modelo' => ['nullable', 'string', 'max:255'],
             'ativo' => ['boolean'],
+            'monitorar' => ['boolean'],
+            'metodo_monitoramento' => ['required', Rule::enum(MetodoMonitoramento::class), $classe ? 'string' : Rule::notIn(['driver'])],
+            'porta_monitoramento' => [$this->metodo_monitoramento === 'tcp' ? 'required' : 'nullable', 'integer', 'between:1,65535'],
             'observacoes' => ['nullable', 'string', 'max:2000'],
         ];
-        $atributos = ['host' => 'endereço (IP)'];
+        $atributos = ['host' => 'endereço (IP)', 'mac' => 'MAC', 'porta_monitoramento' => 'porta a testar'];
 
-        foreach ($classe::campos() as $campo) {
+        foreach ($classe ? $classe::campos() : [] as $campo) {
             $regrasCampo = $campo->regrasDeValidacao();
             if ($campo->tipo === 'senha' && in_array($campo->nome, $this->segredosSalvos, true)) {
                 $regrasCampo[0] = 'nullable'; // mantém o valor salvo se ficar em branco
@@ -255,6 +322,11 @@ new class extends Component {
         unset($dados['config']);
         $dados['host'] = $dados['host'] ?: null;
         $dados['porta'] = $dados['porta'] !== '' && $dados['porta'] !== null ? (int) $dados['porta'] : null;
+        $dados['driver'] = $classe ? $dados['driver'] : null;
+        $dados['canais'] = $classe ? (int) $dados['canais'] : 1;
+        $dados['mac'] = $dados['mac'] ? strtoupper(str_replace('-', ':', $dados['mac'])) : null;
+        $dados['fabricante_modelo'] = $dados['fabricante_modelo'] ?: null;
+        $dados['porta_monitoramento'] = $dados['porta_monitoramento'] ? (int) $dados['porta_monitoramento'] : null;
 
         return $dados;
     }
@@ -266,7 +338,7 @@ new class extends Component {
     {
         $final = [];
 
-        foreach ($this->classe::campos() as $campo) {
+        foreach ($this->campos as $campo) {
             $valor = $this->config[$campo->nome] ?? null;
 
             if ($campo->tipo === 'senha' && blank($valor) && $existente && $existente->driver === $this->driver) {
@@ -288,12 +360,12 @@ new class extends Component {
         foreach ($this->campos as $campo) {
             $this->config[$campo->nome] = $campo->padrao ?? ($campo->tipo === 'booleano' ? false : '');
         }
-        $this->porta = (string) ($this->classe::portaPadrao() ?? '');
+        $this->porta = (string) ($this->classe ? ($this->classe::portaPadrao() ?? '') : '');
     }
 }; ?>
 
 <section class="w-full max-w-3xl">
-    <x-cabecalho-pagina :titulo="$dispositivoId ? __('Editar dispositivo') : __('Novo dispositivo')" :subtitulo="$dispositivoId ? $nome : __('Cadastre um relé ou acionador.')">
+    <x-cabecalho-pagina :titulo="$dispositivoId ? __('Editar dispositivo') : __('Novo dispositivo')" :subtitulo="$dispositivoId ? $nome : __('Relé, leitora, câmera, roteador, switch...')">
         <x-slot:acoes>
             <flux:button variant="ghost" icon="arrow-left" :href="route('dispositivos.index')" wire:navigate>{{ __('Voltar') }}</flux:button>
         </x-slot:acoes>
@@ -304,19 +376,31 @@ new class extends Component {
         <flux:fieldset>
             <flux:legend>{{ __('Equipamento') }}</flux:legend>
             <div class="grid gap-4 sm:grid-cols-2">
-                <div class="sm:col-span-2"><flux:input wire:model="nome" :label="__('Nome')" :placeholder="__('Ex.: Relé portaria, Shelly garagem')" required /></div>
-                <div class="sm:col-span-2">
-                    <flux:select wire:model.live="driver" :label="__('Modelo / driver')" :description:trailing="$this->classe::descricao()">
-                        @foreach ($this->drivers as $chave => $classe)
-                            <flux:select.option :value="$chave">{{ $classe::nome() }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                </div>
-                @if ($this->classe::usaHost())
-                    <flux:input wire:model="host" :label="__('Endereço (IP)')" placeholder="192.168.0.50" class="font-mono" autocomplete="off" required />
-                    <flux:input wire:model="porta" type="number" :label="__('Porta')" :placeholder="(string) $this->classe::portaPadrao()" />
+                <div class="sm:col-span-2"><flux:input wire:model="nome" :label="__('Nome')" :placeholder="__('Ex.: Relé portaria, Roteador principal, Switch 1º andar')" required /></div>
+                <flux:select wire:model.live="tipo" :label="__('Tipo de equipamento')">
+                    @foreach (TipoDispositivo::cases() as $t)
+                        <flux:select.option :value="$t->value">{{ $t->label() }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:input wire:model="fabricante_modelo" :label="__('Fabricante / modelo (opcional)')" :placeholder="__('Ex.: MikroTik hEX, Intelbras')" />
+                @if ($this->usaDriver)
+                    <div class="sm:col-span-2">
+                        <flux:select wire:model.live="driver" :label="__('Modelo / driver')" :description:trailing="$this->classe ? $this->classe::descricao() : null">
+                            @foreach ($this->drivers as $chave => $classe)
+                                <flux:select.option :value="$chave">{{ $classe::nome() }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </div>
                 @endif
-                <flux:input wire:model="canais" type="number" min="1" :max="$this->classe::maximoDeCanais()" :label="__('Quantidade de canais (relés)')" />
+                @if (! $this->classe || $this->classe::usaHost())
+                    <flux:input wire:model="host" :label="__('Endereço (IP)')" placeholder="192.168.0.50" class="font-mono" autocomplete="off" :required="(bool) $this->classe" />
+                    <flux:input wire:model="porta" type="number" :label="__('Porta')" :placeholder="(string) ($this->classe ? $this->classe::portaPadrao() : '')" />
+                @endif
+                @if ($this->classe)
+                    <flux:input wire:model="canais" type="number" min="1" :max="$this->classe::maximoDeCanais()" :label="__('Quantidade de canais (relés)')" />
+                @else
+                    <flux:input wire:model="mac" :label="__('MAC (opcional)')" placeholder="AA:BB:CC:DD:EE:FF" class="font-mono" />
+                @endif
                 <div class="flex items-end pb-2"><flux:switch wire:model="ativo" :label="__('Dispositivo ativo')" /></div>
             </div>
         </flux:fieldset>
@@ -355,6 +439,27 @@ new class extends Component {
         @endif
 
         <flux:fieldset>
+            <flux:legend>{{ __('Monitoramento') }}</flux:legend>
+            <flux:description class="mb-4">{{ __('O servidor testa o equipamento a cada minuto e avisa pelo Telegram se ele cair.') }}</flux:description>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2"><flux:switch wire:model.live="monitorar" :label="__('Monitorar este equipamento')" /></div>
+                @if ($monitorar)
+                    <flux:select wire:model.live="metodo_monitoramento" :label="__('Como testar')">
+                        @foreach (MetodoMonitoramento::cases() as $m)
+                            @if ($m !== MetodoMonitoramento::Driver || $this->classe)
+                                <flux:select.option :value="$m->value">{{ $m->label() }}</flux:select.option>
+                            @endif
+                        @endforeach
+                    </flux:select>
+                    @if ($metodo_monitoramento === 'tcp')
+                        <flux:input wire:model="porta_monitoramento" type="number" :label="__('Porta a testar')" placeholder="80" :description:trailing="__('Use quando o equipamento não responde a ping. Ex.: 80 (web), 554 (câmera), 6668 (Tuya), 8291 (MikroTik).')" />
+                    @endif
+                @endif
+            </div>
+        </flux:fieldset>
+
+        @if ($this->classe)
+        <flux:fieldset>
             <flux:legend>{{ __('Testar') }}</flux:legend>
             <flux:description class="mb-4">{{ __('Usa os dados desta tela, mesmo antes de salvar. "Ligar" deixa o relé ligado até você clicar em "Desligar".') }}</flux:description>
             <div class="flex flex-wrap items-end gap-2">
@@ -385,6 +490,7 @@ new class extends Component {
                 @endif
             @endif
         </flux:fieldset>
+        @endif
 
         @if ($this->ehLeitoraSalva)
             <flux:fieldset>

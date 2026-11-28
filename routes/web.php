@@ -35,12 +35,15 @@ Route::middleware(['auth'])->group(function () {
     Route::livewire('equipamentos/dispositivos', 'pages::dispositivos.index')->name('dispositivos.index');
     Route::livewire('equipamentos/dispositivos/novo', 'pages::dispositivos.form')->name('dispositivos.criar');
     Route::livewire('equipamentos/dispositivos/{dispositivo}/editar', 'pages::dispositivos.form')->name('dispositivos.editar');
+    Route::livewire('equipamentos/mapa', 'pages::rede.mapa')->name('rede.mapa');
+    Route::livewire('mapa-geral', 'pages::rede.geral')->name('rede.geral');
     Route::livewire('equipamentos/pontos-de-acesso', 'pages::dispositivos.pontos')->name('pontos.index');
 
     // Sistema (super admin)
     Route::livewire('sistema/atualizacao', 'pages::sistema.atualizacao')
         ->middleware('password.confirm')
         ->name('sistema.atualizacao');
+    Route::livewire('sistema/alertas', 'pages::sistema.alertas')->name('sistema.alertas');
     Route::get('sistema/atualizacao/estado', EstadoAtualizacaoController::class)->name('sistema.atualizacao.estado');
 
     // Usuários do condomínio atual

@@ -146,6 +146,16 @@ implantacao\atualizar.bat
 
 As duas formas executam o mesmo script: baixam o código, instalam dependências, compilam as telas, atualizam o banco e tiram o sistema da manutenção. O registro fica em `storage\logs\atualizacao.log`.
 
+## 8.1 Tarefas automáticas (monitoramento da rede)
+
+Rode uma vez, pelo Terminal do Laragon normal:
+
+```bash
+implantacao\instalar-agendador.bat
+```
+
+O monitoramento e os alertas passam a rodar sozinhos, a cada minuto. Veja `docs/MONITORAMENTO.md`.
+
 ## 9. Comandos Tuya no servidor
 
 Como o servidor está na mesma rede do bocal, os comandos de `docs/TUYA.md` rodam **nele**:

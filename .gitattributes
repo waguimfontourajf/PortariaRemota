@@ -11,3 +11,4 @@ README.md export-ignore
 .github/workflows/browser-tests.yml export-ignore
 
 *.bat text eol=crlf
+*.vbs text eol=crlf

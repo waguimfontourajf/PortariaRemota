@@ -28,6 +28,7 @@ new class extends Component {
     public string $modo_operacao = 'direto';
     public bool $ativo = true;
     public string $observacoes = '';
+    public string $telegram_chat_id = '';
 
     public function mount(?Condominio $condominio = null): void
     {
@@ -36,7 +37,7 @@ new class extends Component {
             $this->condominioId = $condominio->id;
             $this->fill(collect($condominio->only([
                 'nome', 'cnpj', 'telefone', 'email', 'cep', 'logradouro', 'numero',
-                'complemento', 'bairro', 'cidade', 'uf', 'observacoes',
+                'complemento', 'bairro', 'cidade', 'uf', 'observacoes', 'telegram_chat_id',
             ]))->map(fn ($v) => (string) $v)->all());
             $this->modo_operacao = $condominio->modo_operacao->value;
             $this->ativo = $condominio->ativo;
@@ -80,6 +81,7 @@ new class extends Component {
             'modo_operacao' => ['required', Rule::enum(ModoOperacao::class)],
             'ativo' => ['boolean'],
             'observacoes' => ['nullable', 'string', 'max:2000'],
+            'telegram_chat_id' => ['nullable', 'regex:/^-?\d{3,20}$/'],
         ], attributes: [
             'cep' => 'CEP', 'uf' => 'UF', 'cnpj' => 'CNPJ', 'modo_operacao' => 'modo de operação',
         ]);
@@ -87,7 +89,7 @@ new class extends Component {
         $dados = collect($dados)->map(fn ($v) => $v === '' ? null : $v)->all();
 
         if (! $this->podeAlterarAdministrativo()) {
-            unset($dados['modo_operacao'], $dados['ativo']);
+            unset($dados['modo_operacao'], $dados['ativo'], $dados['telegram_chat_id']);
         }
 
         if ($condominio) {
@@ -191,6 +193,9 @@ new class extends Component {
                 <div class="flex items-end pb-2">
                     <flux:switch wire:model="ativo" :label="__('Condomínio ativo')" :disabled="! $this->podeAlterarAdministrativo()" />
                 </div>
+                @if ($this->podeAlterarAdministrativo())
+                    <div class="sm:col-span-2"><flux:input wire:model="telegram_chat_id" :label="__('Grupo do Telegram do condomínio (opcional)')" placeholder="-1001234567890" :description:trailing="__('Recebe os alertas de queda só deste condomínio (ex.: grupo com o síndico). O bot precisa estar no grupo. Use Alertas (Telegram) → Procurar conversas para achar o número.')" /></div>
+                @endif
                 <div class="sm:col-span-2"><flux:textarea wire:model="observacoes" :label="__('Observações')" rows="3" /></div>
             </div>
         </flux:fieldset>

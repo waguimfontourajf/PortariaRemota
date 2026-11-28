@@ -25,6 +25,22 @@ new #[Title('Dispositivos')] class extends Component {
     public function testar(int $id): void
     {
         $dispositivo = $this->buscar($id);
+
+        if (! $dispositivo->temDriver()) {
+            // Equipamento de rede: roda o mesmo teste do monitoramento.
+            app(\App\Monitoramento\Monitor::class)->executar(somente: collect([$dispositivo]));
+            $dispositivo->refresh();
+            $ok = $dispositivo->ultimo_erro === null;
+            Flux::toast(
+                variant: $ok ? 'success' : 'danger',
+                heading: $dispositivo->nome,
+                text: $ok ? __('Respondeu em :ms ms.', ['ms' => $dispositivo->latencia_ms ?? '<1']) : $dispositivo->ultimo_erro,
+            );
+            unset($this->dispositivos);
+
+            return;
+        }
+
         $resultado = $dispositivo->driverDeRele()->testar($dispositivo);
         $dispositivo->registrarContato($resultado->sucesso, $resultado->sucesso ? null : $resultado->mensagem);
 
@@ -62,6 +78,7 @@ new #[Title('Dispositivos')] class extends Component {
 <section class="w-full">
     <x-cabecalho-pagina :titulo="__('Dispositivos')" :subtitulo="__('Relés e demais equipamentos instalados no condomínio.')">
         <x-slot:acoes>
+            <flux:button icon="share" :href="route('rede.mapa')" wire:navigate>{{ __('Mapa da rede') }}</flux:button>
             <flux:button variant="primary" icon="plus" :href="route('dispositivos.criar')" wire:navigate>{{ __('Novo dispositivo') }}</flux:button>
         </x-slot:acoes>
     </x-cabecalho-pagina>
@@ -69,7 +86,7 @@ new #[Title('Dispositivos')] class extends Component {
     <flux:table>
         <flux:table.columns>
             <flux:table.column>{{ __('Nome') }}</flux:table.column>
-            <flux:table.column class="max-md:hidden">{{ __('Modelo / driver') }}</flux:table.column>
+            <flux:table.column class="max-md:hidden">{{ __('Tipo / driver') }}</flux:table.column>
             <flux:table.column class="max-lg:hidden">{{ __('Endereço') }}</flux:table.column>
             <flux:table.column>{{ __('Comunicação') }}</flux:table.column>
             <flux:table.column class="max-sm:hidden" align="end">{{ __('Pontos') }}</flux:table.column>
@@ -79,23 +96,27 @@ new #[Title('Dispositivos')] class extends Component {
             @forelse ($this->dispositivos as $d)
                 <flux:table.row :key="$d->id">
                     <flux:table.cell>
+                        <flux:icon :name="$d->tipo->icone()" variant="mini" class="me-1 inline text-zinc-400" />
                         <flux:link variant="subtle" class="font-medium text-zinc-800! dark:text-white!" :href="route('dispositivos.editar', $d)" wire:navigate>{{ $d->nome }}</flux:link>
                         @unless ($d->ativo)
                             <flux:badge size="sm" color="zinc" class="ms-1">{{ __('Inativo') }}</flux:badge>
                         @endunless
                     </flux:table.cell>
-                    <flux:table.cell class="max-md:hidden">{{ $d->nomeDoDriver() }}</flux:table.cell>
+                    <flux:table.cell class="max-md:hidden">{{ $d->temDriver() ? $d->nomeDoDriver() : $d->tipo->label() }}</flux:table.cell>
                     <flux:table.cell class="max-lg:hidden font-mono text-xs">{{ $d->host ? $d->host.($d->porta ? ':'.$d->porta : '') : '—' }}</flux:table.cell>
                     <flux:table.cell>
-                        @if ($d->online === null)
-                            <flux:badge size="sm" color="zinc">{{ __('Não testado') }}</flux:badge>
-                        @elseif ($d->online)
-                            <flux:tooltip :content="__('Último contato: :data', ['data' => $d->ultimo_contato_em?->format('d/m/Y H:i:s')])">
-                                <flux:badge size="sm" color="green" icon="signal">{{ __('Online') }}</flux:badge>
-                            </flux:tooltip>
+                        @php($status = $d->statusEfetivo())
+                        @if ($status === \App\Enums\StatusMonitoramento::NaoMonitorado || $status === \App\Enums\StatusMonitoramento::Desconhecido)
+                            @if ($d->online === null)
+                                <flux:badge size="sm" color="zinc">{{ $status->label() }}</flux:badge>
+                            @else
+                                <flux:badge size="sm" :color="$d->online ? 'green' : 'red'">{{ $d->online ? __('Respondeu no último teste') : __('Sem resposta') }}</flux:badge>
+                            @endif
                         @else
-                            <flux:tooltip :content="$d->ultimo_erro">
-                                <flux:badge size="sm" color="red" icon="signal-slash">{{ __('Sem resposta') }}</flux:badge>
+                            <flux:tooltip :content="$status === \App\Enums\StatusMonitoramento::Offline ? $d->ultimo_erro : __('Verificado :t', ['t' => $d->verificado_em?->diffForHumans()])">
+                                <flux:badge size="sm" :color="$status->cor()">
+                                    {{ $status->label() }}{{ $d->latencia_ms !== null && $status !== \App\Enums\StatusMonitoramento::Offline ? ' · '.$d->latencia_ms.' ms' : '' }}
+                                </flux:badge>
                             </flux:tooltip>
                         @endif
                     </flux:table.cell>
