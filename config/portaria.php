@@ -122,4 +122,13 @@ return [
         'paralelo' => 20,
     ],
 
+    /*
+    | Central de atendimento (interfone).
+    | tocar_segundos: depois disso, uma chamada não atendida vira "não atendida".
+    */
+    'central' => [
+        'tocar_segundos' => (int) env('PORTARIA_CENTRAL_TOCAR_SEGUNDOS', 90),
+        // Número que o interfone disca para chamar a central.
+        'numero' => env('PORTARIA_CENTRAL_NUMERO', '1000'),
+    ],
 ];

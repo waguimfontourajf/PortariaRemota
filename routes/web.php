@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\CampainhaController;
 use App\Http\Controllers\EstadoAtualizacaoController;
 use App\Http\Controllers\FotoPessoaController;
 use App\Http\Controllers\ImagemCameraController;
 use App\Http\Controllers\NovidadesController;
+use App\Http\Controllers\PabxController;
+use App\Http\Controllers\SoftphoneController;
 use App\Http\Controllers\TrocarCondominioController;
 use App\Http\Controllers\VisitanteController;
 use App\Support\RegrasDeAcesso;
@@ -16,6 +19,12 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::get('v/{token}', [VisitanteController::class, 'mostrar'])->where('token', '[A-Za-z0-9]{32}')->name('visitante.mostrar');
     Route::post('v/{token}/abrir/{ponto}', [VisitanteController::class, 'abrir'])->where('token', '[A-Za-z0-9]{32}')
         ->middleware('throttle:6,1')->name('visitante.abrir');
+});
+
+// Avisos do PABX (Asterisk) e da "campainha" por URL: sem login, protegidos por token.
+Route::middleware('throttle:120,1')->group(function () {
+    Route::post('pabx/evento', PabxController::class)->name('pabx.evento');
+    Route::match(['get', 'post'], 'campainha/{token}', CampainhaController::class)->where('token', '[A-Za-z0-9]{40}')->name('campainha');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -53,6 +62,8 @@ Route::middleware(['auth'])->group(function () {
     // Operação
     Route::livewire('abrir', 'pages::acessos.abrir')->name('acessos.abrir');
     Route::livewire('cameras', 'pages::cameras.index')->name('cameras.index');
+    Route::livewire('central', 'pages::central.index')->name('central.index');
+    Route::get('central/softphone', SoftphoneController::class)->name('central.softphone');
     Route::get('cameras/{dispositivo}/imagem', ImagemCameraController::class)->middleware('throttle:600,1')->name('cameras.imagem');
     Route::livewire('visitas', 'pages::visitas.index')->name('visitas.index');
     Route::livewire('visitas/nova', 'pages::visitas.form')->name('visitas.criar');
@@ -72,6 +83,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('password.confirm')
         ->name('sistema.atualizacao');
     Route::livewire('sistema/alertas', 'pages::sistema.alertas')->name('sistema.alertas');
+    Route::livewire('sistema/central-telefonica', 'pages::sistema.pabx')->name('sistema.pabx');
     Route::get('sistema/atualizacao/estado', EstadoAtualizacaoController::class)->name('sistema.atualizacao.estado');
 
     // Usuários do condomínio atual

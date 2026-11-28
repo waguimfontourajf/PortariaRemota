@@ -39,7 +39,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $updated_at
  */
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+#[Hidden(['password', 'senha_sip', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -64,6 +64,7 @@ class User extends Authenticatable
             'ativo' => 'boolean',
             'ultimo_login_em' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'senha_sip' => 'encrypted',
         ];
     }
 

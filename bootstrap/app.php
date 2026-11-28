@@ -24,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // A tela "Atualizar sistema" acompanha o andamento mesmo com o sistema em manutenção.
         $middleware->preventRequestsDuringMaintenance(except: ['sistema/atualizacao/estado']);
 
+        // Avisos do PABX e da campainha chegam de aparelhos, sem sessão: protegidos por token.
+        $middleware->validateCsrfTokens(except: ['pabx/evento', 'campainha/*']);
+
         $middleware->web(append: [
             BloquearUsuarioInativo::class,
             DefinirCondominioAtual::class,

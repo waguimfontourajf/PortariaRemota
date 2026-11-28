@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Central\Chamadas;
 use App\Enums\Permissao;
 use App\Enums\ResultadoEvento;
+use App\Models\Chamada;
 use App\Models\EventoAcesso;
 use App\Models\QuedaDispositivo;
 use App\Models\Visita;
@@ -33,8 +35,10 @@ class NovidadesController extends Controller
         $maxQueda = (int) QuedaDispositivo::max('id');
         $agora = now();
 
+        $chamadas = $this->chamadas($usuario);
+
         if (! $request->filled('e')) {
-            return $this->responder(['e' => $maxEvento, 'q' => $maxQueda, 't' => $agora->timestamp], [], []);
+            return $this->responder(['e' => $maxEvento, 'q' => $maxQueda, 't' => $agora->timestamp], [], [], $chamadas);
         }
 
         $desdeEvento = (int) $request->integer('e');
@@ -80,7 +84,31 @@ class NovidadesController extends Controller
 
         $rede = $this->rede($usuario, $condominio?->id, $desdeQueda, $maxQueda, $desdeHora);
 
-        return $this->responder(['e' => $maxEvento, 'q' => $maxQueda, 't' => $agora->timestamp], $eventos, $rede);
+        return $this->responder(['e' => $maxEvento, 'q' => $maxQueda, 't' => $agora->timestamp], $eventos, $rede, $chamadas);
+    }
+
+    /**
+     * Chamadas de interfone em andamento (tocando, ou que este usuário atende).
+     * Sempre o estado atual, não só as novas: o pop-up da central depende disso.
+     *
+     * @return list<array<string, mixed>>|null null = usuário não atende chamadas
+     */
+    private function chamadas($usuario): ?array
+    {
+        if (Chamadas::condominiosQueAtende($usuario)->isEmpty()) {
+            return null;
+        }
+
+        return app(Chamadas::class)->ativasPara($usuario)
+            ->map(fn (Chamada $c) => [
+                'uuid' => $c->uuid,
+                'status' => $c->status->value,
+                'titulo' => $c->titulo(),
+                'condominio' => $c->condominio->nome,
+                'minha' => $c->atendida_por_id === $usuario->id,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -129,10 +157,11 @@ class NovidadesController extends Controller
      * @param  array<string, int>  $cursor
      * @param  list<array<string, mixed>>  $eventos
      * @param  list<array<string, mixed>>  $rede
+     * @param  list<array<string, mixed>>|null  $chamadas
      */
-    private function responder(array $cursor, array $eventos, array $rede): JsonResponse
+    private function responder(array $cursor, array $eventos, array $rede, ?array $chamadas = null): JsonResponse
     {
-        return response()->json(['cursor' => $cursor, 'eventos' => $eventos, 'rede' => $rede])
+        return response()->json(['cursor' => $cursor, 'eventos' => $eventos, 'rede' => $rede, 'chamadas' => $chamadas])
             ->header('Cache-Control', 'no-store');
     }
 }

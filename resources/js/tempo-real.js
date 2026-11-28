@@ -5,6 +5,7 @@
  *   tempo-real-acesso   (detail = um acesso: ponto, usuário, resultado...)
  *   tempo-real-acessos  (detail = lista dos acessos novos, uma vez por ciclo)
  *   tempo-real-rede     (detail = queda ou volta de um equipamento)
+ *   tempo-real-chamadas (detail = chamadas de interfone em andamento; só quando mudam)
  *
  * As telas reagem com, por exemplo:  x-on:tempo-real-acessos.window="$wire.$refresh()"
  *
@@ -20,7 +21,7 @@ export function iniciarTempoReal() {
     if (!meta) return;
 
     const url = meta.content;
-    const estado = { cursor: null, ocupado: false, falhas: 0 };
+    const estado = { cursor: null, ocupado: false, falhas: 0, atende: false, chamadas: null };
     window.__tempoReal = estado;
 
     const store = () => window.Alpine?.store('tempoReal');
@@ -30,7 +31,8 @@ export function iniciarTempoReal() {
     const avisar = (nome, detalhe) => window.dispatchEvent(new CustomEvent(nome, { detail: detalhe }));
 
     async function verificar() {
-        if (document.hidden || estado.ocupado) return;
+        // Quem atende o interfone continua recebendo chamadas com a aba em segundo plano.
+        if ((document.hidden && !estado.atende) || estado.ocupado) return;
         // Sem sessão (saiu do sistema): para.
         if (!document.querySelector('meta[name="tempo-real"]')) return;
 
@@ -67,6 +69,16 @@ export function iniciarTempoReal() {
             }
             if (dados.eventos.length) avisar('tempo-real-acessos', dados.eventos);
 
+            estado.atende = Array.isArray(dados.chamadas);
+            if (estado.atende) {
+                const assinatura = JSON.stringify(dados.chamadas);
+                if (assinatura !== estado.chamadas) {
+                    estado.chamadas = assinatura;
+                    store() && (store().chamadas = dados.chamadas);
+                    avisar('tempo-real-chamadas', dados.chamadas);
+                }
+            }
+
             for (const item of dados.rede) {
                 avisar('tempo-real-rede', item);
                 toast(item.tipo === 'caiu'
@@ -80,6 +92,9 @@ export function iniciarTempoReal() {
             estado.ocupado = false;
         }
     }
+
+    // Para verificar na hora (ex.: o softphone recebeu uma ligação).
+    estado.agora = () => verificar();
 
     setInterval(verificar, INTERVALO);
     document.addEventListener('visibilitychange', () => !document.hidden && verificar());

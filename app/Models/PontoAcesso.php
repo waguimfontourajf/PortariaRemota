@@ -38,7 +38,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $observacoes
  * @property-read Dispositivo|null $dispositivo
  */
-#[Fillable(['nome', 'tipo', 'dispositivo_id', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'ordem', 'observacoes'])]
+#[Fillable(['nome', 'tipo', 'dispositivo_id', 'interfone_id', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'ordem', 'observacoes'])]
 class PontoAcesso extends Model
 {
     /** @use HasFactory<PontoAcessoFactory> */
@@ -89,6 +89,16 @@ class PontoAcesso extends Model
     public function dispositivo(): BelongsTo
     {
         return $this->belongsTo(Dispositivo::class);
+    }
+
+    /**
+     * Interfone que toca para este portão.
+     *
+     * @return BelongsTo<Dispositivo, $this>
+     */
+    public function interfone(): BelongsTo
+    {
+        return $this->belongsTo(Dispositivo::class, 'interfone_id');
     }
 
     /**

@@ -21,6 +21,7 @@ new #[Title('Pontos de acesso')] class extends Component {
     public string $nome = '';
     public string $tipo = 'portao_social';
     public string $dispositivo_id = '';
+    public string $interfone_id = '';
     public int $canal = 1;
     public string $modo_acionamento = 'pulso';
     public int $tempo_pulso_ms = 1000;
@@ -51,6 +52,12 @@ new #[Title('Pontos de acesso')] class extends Component {
     }
 
     #[Computed]
+    public function interfones()
+    {
+        return $this->condominio()->dispositivos()->where('tipo', 'interfone')->orderBy('nome')->get(['id', 'nome', 'ramal']);
+    }
+
+    #[Computed]
     public function dispositivos()
     {
         return $this->condominio()->dispositivos()->where('tipo', 'rele')->orderBy('nome')->get();
@@ -59,7 +66,7 @@ new #[Title('Pontos de acesso')] class extends Component {
     public function novo(): void
     {
         $this->exigirPermissao(Permissao::DispositivosGerenciar);
-        $this->reset('pontoId', 'nome', 'tipo', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'observacoes', 'camerasEscolhidas');
+        $this->reset('pontoId', 'nome', 'tipo', 'canal', 'modo_acionamento', 'tempo_pulso_ms', 'liberado_moradores', 'liberado_visitantes', 'ativo', 'observacoes', 'camerasEscolhidas', 'interfone_id');
         $this->dispositivo_id = (string) ($this->dispositivos->first()?->id ?? '');
         $this->ordem = ($this->pontos->max('ordem') ?? 0) + 1;
         $this->resetValidation();
@@ -74,6 +81,7 @@ new #[Title('Pontos de acesso')] class extends Component {
             'nome' => $ponto->nome,
             'tipo' => $ponto->tipo->value,
             'dispositivo_id' => (string) $ponto->dispositivo_id,
+            'interfone_id' => (string) $ponto->interfone_id,
             'canal' => $ponto->canal,
             'modo_acionamento' => $ponto->modo_acionamento->value,
             'tempo_pulso_ms' => $ponto->tempo_pulso_ms,
@@ -106,11 +114,13 @@ new #[Title('Pontos de acesso')] class extends Component {
             'ativo' => ['boolean'],
             'ordem' => ['integer', 'min:0', 'max:999'],
             'observacoes' => ['nullable', 'string', 'max:1000'],
+            'interfone_id' => ['nullable', Rule::in($this->interfones->pluck('id')->map(fn ($id) => (string) $id)->all())],
             'camerasEscolhidas' => ['array'],
             'camerasEscolhidas.*' => [Rule::in($this->cameras->pluck('id')->map(fn ($id) => (string) $id)->all())],
         ], attributes: ['dispositivo_id' => 'dispositivo', 'tempo_pulso_ms' => 'tempo do pulso']);
 
         $dados['observacoes'] = $dados['observacoes'] ?: null;
+        $dados['interfone_id'] = filled($dados['interfone_id'] ?? null) ? (int) $dados['interfone_id'] : null;
         $cameras = collect($dados['camerasEscolhidas'] ?? [])->values()->mapWithKeys(fn ($id, $i) => [(int) $id => ['ordem' => $i]])->all();
         unset($dados['camerasEscolhidas']);
 
@@ -227,6 +237,14 @@ new #[Title('Pontos de acesso')] class extends Component {
                 <div class="sm:col-span-2 space-y-3">
                     <flux:switch wire:model="liberado_moradores" :label="__('Moradores podem abrir')" :description="__('Se desligado, apenas operadores, porteiros e síndico abrem.')" />
                     <flux:switch wire:model="liberado_visitantes" :label="__('Visitantes podem abrir (link do morador)')" :description="__('Só para acionamento por pulso. Deixe desligado em garagens, se preferir.')" />
+                    @if ($this->interfones->isNotEmpty())
+                        <flux:select wire:model="interfone_id" :label="__('Interfone deste portão')" :description:trailing="__('Quando ele tocar, a central vê este portão, as câmeras e o botão ABRIR.')">
+                            <flux:select.option value="">{{ __('Nenhum') }}</flux:select.option>
+                            @foreach ($this->interfones as $i)
+                                <flux:select.option :value="(string) $i->id">{{ $i->nome }}{{ $i->ramal ? ' — '.__('ramal').' '.$i->ramal : '' }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    @endif
                     @if ($this->cameras->isNotEmpty())
                         <flux:checkbox.group wire:model="camerasEscolhidas" :label="__('Câmeras deste portão')" :description="__('Aparecem junto do botão ABRIR.')">
                             @foreach ($this->cameras as $c)

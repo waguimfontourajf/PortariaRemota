@@ -38,8 +38,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $ultimo_erro
  * @property string|null $observacoes
  */
-#[Fillable(['nome', 'tipo', 'driver', 'host', 'porta', 'mac', 'fabricante_modelo', 'canais', 'config', 'ativo', 'monitorar', 'metodo_monitoramento', 'porta_monitoramento', 'observacoes'])]
-#[Hidden(['config'])]
+#[Fillable(['nome', 'tipo', 'driver', 'host', 'porta', 'ramal', 'mac', 'fabricante_modelo', 'canais', 'config', 'ativo', 'monitorar', 'metodo_monitoramento', 'porta_monitoramento', 'observacoes'])]
+#[Hidden(['config', 'token_hash'])]
 class Dispositivo extends Model
 {
     /** @use HasFactory<DispositivoFactory> */

@@ -1,15 +1,23 @@
 import mapaDeRede from './mapa-de-rede';
 import cameraAoVivo from './camera-ao-vivo';
 import { iniciarTempoReal } from './tempo-real';
+import { iniciarSoftphone } from './softphone';
+import { iniciarToque } from './toque';
 
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('mapaDeRede', mapaDeRede);
     window.Alpine.data('cameraAoVivo', cameraAoVivo);
-    window.Alpine.store('tempoReal', { conectado: true });
+    window.Alpine.store('tempoReal', { conectado: true, chamadas: [] });
+    window.Alpine.store('softphone', { estado: 'desligado', mensagem: '', ligacoes: [], mudo: false, somLiberado: false });
 });
 
 document.addEventListener('livewire:navigated', iniciarTempoReal);
 document.addEventListener('DOMContentLoaded', iniciarTempoReal);
+
+// Central de atendimento: telefone no navegador e toque do interfone.
+for (const evento of ['DOMContentLoaded', 'livewire:navigated']) {
+    document.addEventListener(evento, () => { iniciarToque(); iniciarSoftphone(); });
+}
 
 // App instalável (PWA): só funciona em HTTPS (ou localhost).
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {

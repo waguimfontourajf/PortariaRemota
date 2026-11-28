@@ -1,6 +1,7 @@
 <?php
 
 use App\Cameras\Cameras;
+use App\Central\Interfones;
 use App\Dispositivos\Campo;
 use App\Dispositivos\RegistroDeDrivers;
 use App\Enums\MetodoMonitoramento;
@@ -32,6 +33,12 @@ new class extends Component {
     public string $porta_monitoramento = '';
     public string $host = '';
     public string $porta = '';
+    public string $ramal = '';
+
+    /** Link da campainha recém-gerado (mostrado uma vez). */
+    public ?string $linkCampainha = null;
+
+    public bool $temCampainha = false;
     public int $canais = 1;
     public bool $ativo = true;
     public string $observacoes = '';
@@ -68,6 +75,8 @@ new class extends Component {
             $this->porta_monitoramento = (string) $dispositivo->porta_monitoramento;
             $this->host = (string) $dispositivo->host;
             $this->porta = (string) $dispositivo->porta;
+            $this->ramal = (string) $dispositivo->ramal;
+            $this->temCampainha = filled($dispositivo->token_hash);
             $this->canais = $dispositivo->canais;
             $this->ativo = $dispositivo->ativo;
             $this->observacoes = (string) $dispositivo->observacoes;
@@ -168,6 +177,7 @@ new class extends Component {
         return match (true) {
             $classe !== null => $classe::campos(),
             $this->tipo === 'camera' => Cameras::campos(),
+            $this->tipo === 'interfone' => Interfones::campos(),
             default => [],
         };
     }
@@ -208,12 +218,26 @@ new class extends Component {
         $this->resetValidation();
     }
 
+    public function gerarLinkCampainha(): void
+    {
+        $this->exigirPermissao(Permissao::DispositivosGerenciar);
+        abort_unless($this->dispositivoId && $this->tipo === 'interfone', 422);
+        $interfone = $this->condominio()->dispositivos()->findOrFail($this->dispositivoId);
+        abort_unless($interfone->tipo === TipoDispositivo::Interfone, 422);
+
+        $this->linkCampainha = Interfones::gerarLinkCampainha($interfone);
+        $this->temCampainha = true;
+    }
+
     public function salvar(): void
     {
         $this->exigirPermissao(Permissao::DispositivosGerenciar);
         $dados = $this->validar();
         $existente = $this->dispositivoId ? $this->condominio()->dispositivos()->findOrFail($this->dispositivoId) : null;
         $dados['config'] = $this->configFinal($existente);
+        if ($this->tipo === 'interfone' && blank($dados['config']['senha_sip'] ?? null)) {
+            $dados['config']['senha_sip'] = $existente?->opcao('senha_sip') ?: Interfones::senhaNova();
+        }
 
         if ($existente) {
             $existente->update($dados);
@@ -351,8 +375,11 @@ new class extends Component {
             'metodo_monitoramento' => ['required', Rule::enum(MetodoMonitoramento::class), $classe ? 'string' : Rule::notIn(['driver'])],
             'porta_monitoramento' => [$this->metodo_monitoramento === 'tcp' ? 'required' : 'nullable', 'integer', 'between:1,65535'],
             'observacoes' => ['nullable', 'string', 'max:2000'],
+            'ramal' => $this->tipo === 'interfone'
+                ? ['nullable', 'regex:/^[0-9]{2,10}$/', Rule::notIn([(string) config('portaria.central.numero')]), Rule::unique('dispositivos', 'ramal')->ignore($this->dispositivoId)]
+                : ['nullable'],
         ];
-        $atributos = ['host' => 'endereço (IP)', 'mac' => 'MAC', 'porta_monitoramento' => 'porta a testar'];
+        $atributos = ['ramal' => 'ramal', 'host' => 'endereço (IP)', 'mac' => 'MAC', 'porta_monitoramento' => 'porta a testar'];
 
         foreach ($this->camposPara($classe) as $campo) {
             $regrasCampo = $campo->regrasDeValidacao();
@@ -372,6 +399,7 @@ new class extends Component {
         $dados['mac'] = $dados['mac'] ? strtoupper(str_replace('-', ':', $dados['mac'])) : null;
         $dados['fabricante_modelo'] = $dados['fabricante_modelo'] ?: null;
         $dados['porta_monitoramento'] = $dados['porta_monitoramento'] ? (int) $dados['porta_monitoramento'] : null;
+        $dados['ramal'] = $this->tipo === 'interfone' && filled($dados['ramal']) ? $dados['ramal'] : null;
 
         return $dados;
     }
@@ -386,7 +414,7 @@ new class extends Component {
         foreach ($this->campos as $campo) {
             $valor = $this->config[$campo->nome] ?? null;
 
-            if ($campo->tipo === 'senha' && blank($valor) && $existente && $existente->driver === $this->driver) {
+            if ($campo->tipo === 'senha' && blank($valor) && $existente && (string) $existente->driver === $this->driver) {
                 $valor = $existente->config[$campo->nome] ?? null;
             }
 
@@ -441,7 +469,19 @@ new class extends Component {
                     <flux:input wire:model="host" :label="__('Endereço (IP)')" placeholder="192.168.0.50" class="font-mono" autocomplete="off" :required="(bool) $this->classe" />
                     <flux:input wire:model="porta" type="number" :label="__('Porta')" :placeholder="(string) ($this->classe ? $this->classe::portaPadrao() : '')" />
                 @endif
-                @if ($tipo === 'camera')
+                @if ($tipo === 'interfone')
+                    <flux:input wire:model="ramal" :label="__('Ramal SIP do interfone')" placeholder="2001" class="font-mono" :description:trailing="__('Número do interfone na central telefônica. A central atende pelo :n.', ['n' => config('portaria.central.numero')])" />
+                @endif
+                @if ($this->classe)
+                    <flux:input wire:model="canais" type="number" min="1" :max="$this->classe::maximoDeCanais()" :label="__('Quantidade de canais (relés)')" />
+                @else
+                    <flux:input wire:model="mac" :label="__('MAC (opcional)')" placeholder="AA:BB:CC:DD:EE:FF" class="font-mono" />
+                @endif
+                <div class="flex items-end pb-2"><flux:switch wire:model="ativo" :label="__('Dispositivo ativo')" /></div>
+            </div>
+        </flux:fieldset>
+
+        @if ($tipo === 'camera')
             <flux:fieldset>
                 <flux:legend>{{ __('Testar a câmera') }}</flux:legend>
                 <div class="flex flex-wrap items-center gap-2">
@@ -460,18 +500,22 @@ new class extends Component {
             </flux:fieldset>
         @endif
 
-        @if ($this->classe)
-                    <flux:input wire:model="canais" type="number" min="1" :max="$this->classe::maximoDeCanais()" :label="__('Quantidade de canais (relés)')" />
-                @else
-                    <flux:input wire:model="mac" :label="__('MAC (opcional)')" placeholder="AA:BB:CC:DD:EE:FF" class="font-mono" />
+        @if ($tipo === 'interfone' && $dispositivoId)
+            <flux:fieldset>
+                <flux:legend>{{ __('Campainha (chamada sem áudio)') }}</flux:legend>
+                <flux:text class="mb-3 text-sm">{{ __('Um botão (Shelly i3/i4, interfone com evento HTTP...) pode chamar este link: a chamada aparece na central com a câmera e o botão ABRIR.') }}</flux:text>
+                @if ($linkCampainha)
+                    <flux:input readonly copyable :value="$linkCampainha" class="font-mono" :description:trailing="__('Guarde agora: por segurança, o link não aparece de novo.')" />
                 @endif
-                <div class="flex items-end pb-2"><flux:switch wire:model="ativo" :label="__('Dispositivo ativo')" /></div>
-            </div>
-        </flux:fieldset>
+                <flux:button class="mt-2" icon="link" wire:click="gerarLinkCampainha" :wire:confirm="$temCampainha ? __('Gerar um link novo? O link antigo para de funcionar.') : null">
+                    {{ $temCampainha ? __('Gerar link novo') : __('Gerar link da campainha') }}
+                </flux:button>
+            </flux:fieldset>
+        @endif
 
         @if ($this->campos)
-            <flux:fieldset wire:key="campos-{{ $driver }}">
-                <flux:legend>{{ __('Configuração do :modelo', ['modelo' => $this->classe::nome()]) }}</flux:legend>
+            <flux:fieldset wire:key="campos-{{ $driver ?: $tipo }}">
+                <flux:legend>{{ $this->classe ? __('Configuração do :modelo', ['modelo' => $this->classe::nome()]) : __('Configuração da :tipo', ['tipo' => mb_strtolower(TipoDispositivo::from($tipo)->label())]) }}</flux:legend>
                 <div class="grid gap-4 sm:grid-cols-2">
                     @foreach ($this->campos as $campo)
                         @php($salvo = in_array($campo->nome, $segredosSalvos, true))

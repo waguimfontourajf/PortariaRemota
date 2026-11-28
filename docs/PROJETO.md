@@ -250,7 +250,7 @@ Todas as tabelas importantes têm `uuid`, porque é isso que permite sincronizar
 | **3. Tempo real** ✅ | consulta leve a cada 3 s (sem servidor extra), acessos e quedas ao vivo, mapa da rede e alertas no Telegram | bancada |
 | **4. PWA do morador** ✅ | app instalável, abrir, visitantes, histórico | celular |
 | **5. Câmeras** ✅ | imagem ao vivo por quadros (Intelbras, Hikvision, URL genérica), tela Câmeras, câmera junto do ABRIR; vídeo fluido (go2rtc) fica como etapa 5B | câmera Intelbras |
-| **6. Interfone e central** | Asterisk, softphone no navegador, pop-up de chamada | ATA ou interfone IP de teste |
+| **6. Interfone e central** ✅ | pop-up de chamada em qualquer tela (câmera + ABRIR), softphone no navegador (JsSIP + Asterisk), campainha por URL, histórico de chamadas | interfone IP de teste |
 | 🎯 **Marco: demonstração** | apresentação no seu condomínio | |
 | **7. Servidor local** | modo local, sincronização, licença, instaladores Windows e Linux | 2 máquinas |
 | **8. VPN** | WireGuard gerenciado pelo painel | condomínio real |

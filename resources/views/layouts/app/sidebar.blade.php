@@ -17,6 +17,11 @@
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Painel') }}
                     </flux:sidebar.item>
+                    @if (\App\Central\Chamadas::condominiosQueAtende(auth()->user())->isNotEmpty())
+                        <flux:sidebar.item icon="phone" :href="route('central.index')" :current="request()->routeIs('central.*')" wire:navigate>
+                            {{ __('Central') }}
+                        </flux:sidebar.item>
+                    @endif
                     @if ($condominioAtual && auth()->user()->can(\App\Enums\Permissao::AcessosAbrir->value))
                         <flux:sidebar.item icon="lock-open" :href="route('acessos.abrir')" :current="request()->routeIs('acessos.abrir')" wire:navigate>
                             {{ __('Abrir') }}
@@ -93,6 +98,9 @@
                             </flux:sidebar.item>
                             <flux:sidebar.item icon="bell-alert" :href="route('sistema.alertas')" :current="request()->routeIs('sistema.alertas')" wire:navigate>
                                 {{ __('Alertas (Telegram)') }}
+                            </flux:sidebar.item>
+                            <flux:sidebar.item icon="phone" :href="route('sistema.pabx')" :current="request()->routeIs('sistema.pabx')" wire:navigate>
+                                {{ __('Central telefônica') }}
                             </flux:sidebar.item>
                             <flux:sidebar.item icon="arrow-down-tray" :href="route('sistema.atualizacao')" :current="request()->routeIs('sistema.atualizacao')" wire:navigate>
                                 {{ __('Atualizar sistema') }}
